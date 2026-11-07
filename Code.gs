@@ -356,9 +356,9 @@ function saveSetoranWithVideo(payload) {
     } catch (driveErr) {
       Logger.log('Drive upload error: ' + driveErr.toString());
     }
-  } else if (payload.videoBlobUrl && payload.videoBlobUrl.startsWith('http')) {
+  } else if ((payload.driveUrl && String(payload.driveUrl).startsWith('http')) || (payload.videoBlobUrl && String(payload.videoBlobUrl).startsWith('http'))) {
     // 2. Pertahankan link Google Drive yang sudah ada jika hanya mengedit data hafalan
-    videoUrl = payload.videoBlobUrl;
+    videoUrl = (payload.driveUrl && String(payload.driveUrl).startsWith('http')) ? payload.driveUrl : payload.videoBlobUrl;
   }
 
   // Pindahkan juga file rekaman SIMTAQ sebelumnya yang sempat masuk ke Beranda/Root ke folder tujuan

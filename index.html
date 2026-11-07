@@ -6434,7 +6434,7 @@ function savePejabatGAS(pejabatObj) {
       if (!isGasEnvironment() && !getActiveGasUrl()) return;
 
       const pending = (appState.setoran || []).filter(item => 
-        item && item.id && !item.syncedToCloud && !activeUploadSet.has(item.id)
+        item && item.id && (!item.syncedToCloud || (!item.driveUrl && item.hasVideo)) && !activeUploadSet.has(item.id)
       );
 
       if (!pending.length) return;
@@ -6446,9 +6446,9 @@ function savePejabatGAS(pejabatObj) {
           activeUploadSet.add(item.id);
           try {
             let base64 = '';
-            if (item.hasVideo && !item.driveUrl) {
+            if (!item.driveUrl) {
               const localBlob = await getVideoBlobLocal(item.id);
-              if (localBlob && localBlob.size <= 25 * 1024 * 1024) {
+              if (localBlob && localBlob.size <= 35 * 1024 * 1024) {
                 base64 = await new Promise((resolve) => {
                   const r = new FileReader();
                   r.onloadend = () => resolve(r.result || '');
@@ -6471,6 +6471,7 @@ function savePejabatGAS(pejabatObj) {
             if (res && (res.status === 'success' || res.videoUrl)) {
               item.syncedToCloud = true;
               if (res.videoUrl) {
+                item.hasVideo = true;
                 item.driveUrl = res.videoUrl;
                 item.videoBlobUrl = res.videoUrl;
               }
@@ -6478,6 +6479,7 @@ function savePejabatGAS(pejabatObj) {
               if (target) {
                 target.syncedToCloud = true;
                 if (res.videoUrl) {
+                  target.hasVideo = true;
                   target.driveUrl = res.videoUrl;
                   target.videoBlobUrl = res.videoUrl;
                 }
@@ -6543,12 +6545,21 @@ function savePejabatGAS(pejabatObj) {
                 return s;
               });
 
-            // Periksa setoran lokal yang belum masuk ke spreadsheet
+            // Periksa setoran lokal yang belum masuk ke spreadsheet atau memiliki rekaman lokal yang belum terunggah ke Drive
             const pendingUploads = (appState.setoran || []).filter(loc => 
-              loc && loc.id && !cleanSetoran.some(cloud => cloud.id === loc.id)
+              loc && loc.id && (!cleanSetoran.some(cloud => cloud.id === loc.id) || (loc.hasVideo && !loc.driveUrl))
             );
 
-            const mergedSetoran = [...cleanSetoran];
+            const mergedSetoran = cleanSetoran.map(cloud => {
+              const localMatch = (appState.setoran || []).find(l => l.id === cloud.id);
+              if (localMatch) {
+                // Pertahankan status video lokal jika di cloud masih dalam antrean sinkronisasi
+                if (!cloud.hasVideo && localMatch.hasVideo) cloud.hasVideo = true;
+                if (!cloud.driveUrl && localMatch.driveUrl) cloud.driveUrl = localMatch.driveUrl;
+                if (!cloud.videoBlobUrl && localMatch.videoBlobUrl) cloud.videoBlobUrl = localMatch.videoBlobUrl;
+              }
+              return cloud;
+            });
             pendingUploads.forEach(p => {
               if (!mergedSetoran.some(m => m.id === p.id)) {
                 mergedSetoran.unshift(p);
@@ -9282,7 +9293,7 @@ function savePejabatGAS(pejabatObj) {
         const objectUrl = URL.createObjectURL(blob);
         showRecordedPreview(objectUrl, blob, mime);
 
-        const MAX_CLOUD_SIZE = 25 * 1024 * 1024; // 25 MB batas aman upload Google Apps Script
+        const MAX_CLOUD_SIZE = 35 * 1024 * 1024; // 35 MB batas aman upload Google Apps Script
         if (blob.size <= MAX_CLOUD_SIZE) {
           const reader = new FileReader();
           reader.onloadend = () => {
@@ -9291,7 +9302,7 @@ function savePejabatGAS(pejabatObj) {
           reader.readAsDataURL(blob);
         } else {
           currentRecordedBase64 = null;
-          showToast(`Ukuran rekaman ${(blob.size / (1024 * 1024)).toFixed(1)}MB melebihi batas 25MB untuk upload Google Drive. Video tetap tersimpan di penyimpanan lokal.`, 'info');
+          showToast(`Ukuran rekaman ${(blob.size / (1024 * 1024)).toFixed(1)}MB melebihi batas 35MB untuk upload Google Drive. Video tetap tersimpan di penyimpanan lokal.`, 'info');
         }
       };
       mediaRecorder.start(1000); // Kumpulkan chunk per 1 detik agar buffer memori stabil
@@ -9312,7 +9323,7 @@ function savePejabatGAS(pejabatObj) {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      const MAX_CLOUD_SIZE = 25 * 1024 * 1024; // 25 MB batas aman
+      const MAX_CLOUD_SIZE = 35 * 1024 * 1024; // 35 MB batas aman
       const mime = file.type || 'video/mp4';
       currentVideoMimeType = mime;
       currentRecordedBlob = file;
@@ -9327,12 +9338,30 @@ function savePejabatGAS(pejabatObj) {
         reader.readAsDataURL(file);
       } else {
         currentRecordedBase64 = null;
-        showToast(`Perhatian: Ukuran file ${(file.size / (1024 * 1024)).toFixed(1)}MB melebihi 25MB. Video tetap tersimpan di perangkat lokal, namun tidak diunggah ke Google Drive untuk mencegah kehabisan memori.`, 'warning');
+        showToast(`Perhatian: Ukuran file ${(file.size / (1024 * 1024)).toFixed(1)}MB melebihi batas 35MB. Video tetap tersimpan di perangkat lokal, namun tidak diunggah ke Google Drive untuk mencegah kehabisan memori.`, 'warning');
       }
+      try { e.target.value = ''; } catch (err) { }
     }
 
     async function handleSaveSetoran(e) {
       e.preventDefault();
+
+      // 1. Jika kamera sedang aktif merekam saat tombol simpan ditekan, hentikan perekaman secara otomatis dan tunggu pemrosesan blob
+      if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
+        showToast('Menyelesaikan perekaman video santri...', 'info');
+        await new Promise((resolve) => {
+          const origStop = mediaRecorder.onstop;
+          mediaRecorder.onstop = (ev) => {
+            if (typeof origStop === 'function') {
+              try { origStop(ev); } catch (err) { }
+            }
+            resolve();
+          };
+          try { mediaRecorder.stop(); } catch (err) { resolve(); }
+        });
+        await new Promise(r => setTimeout(r, 400));
+      }
+
       const editId = document.getElementById('editSetoranId')?.value;
       const sId = document.getElementById('setoranSantriId').value;
       const s = appState.santri.find(x => x.id === sId) || appState.santri[0];
@@ -9344,8 +9373,24 @@ function savePejabatGAS(pejabatObj) {
         existing = appState.setoran.find(x => x.id === editId);
       }
 
-      const hasNewVideo = Boolean(currentRecordedBlob || (currentRecordedBase64 && currentRecordedBase64.startsWith('data:')));
-      const hasRetainedVideo = Boolean(existing && existing.hasVideo && !currentRecordedBlob);
+      // 2. Simpan referensi lokal video SEBELUM modal ditutup / di-reset
+      let uploadBlob = currentRecordedBlob;
+      let uploadBase64 = currentRecordedBase64 || '';
+      const uploadMime = currentVideoMimeType || 'video/webm';
+
+      // Pastikan data base64 sudah lengkap jika ada video rekaman baru
+      if (!uploadBase64 && uploadBlob) {
+        showToast('Mempersiapkan berkas video...', 'info');
+        uploadBase64 = await new Promise((resolve) => {
+          const r = new FileReader();
+          r.onloadend = () => resolve(r.result || '');
+          r.onerror = () => resolve('');
+          r.readAsDataURL(uploadBlob);
+        });
+      }
+
+      const hasNewVideo = Boolean(uploadBlob || (uploadBase64 && String(uploadBase64).startsWith('data:')));
+      const hasRetainedVideo = Boolean(existing && existing.hasVideo && !uploadBlob);
       const isVideoPresent = hasNewVideo || hasRetainedVideo;
 
       let videoBlobUrl = '';
@@ -9355,18 +9400,9 @@ function savePejabatGAS(pejabatObj) {
 
       const newId = editId || ('STR-' + Date.now());
 
-      // Simpan video lokal di IndexedDB & memori agar bisa langsung diputar saat itu juga tanpa antrean transcode Google Drive
-      if (currentRecordedBlob) {
-        await saveVideoBlobLocal(newId, currentRecordedBlob);
-      }
-
-      // Pastikan data base64 sudah siap jika merekam video baru
-      if (hasNewVideo && !currentRecordedBase64 && currentRecordedBlob) {
-        await new Promise((resolve) => {
-          const r = new FileReader();
-          r.onloadend = () => { currentRecordedBase64 = r.result; resolve(); };
-          r.readAsDataURL(currentRecordedBlob);
-        });
+      // Simpan video lokal di IndexedDB agar bisa langsung diputar seketika tanpa antrean transcode Google Drive
+      if (uploadBlob) {
+        await saveVideoBlobLocal(newId, uploadBlob);
       }
 
       const nTotal = Number(document.getElementById('setoranNilai').value) || 95;
@@ -9377,7 +9413,7 @@ function savePejabatGAS(pejabatObj) {
       const mIrama = Number(document.getElementById('setoranIrama')?.value) || nTotal;
       const mAdab = Number(document.getElementById('setoranAdab')?.value) || nTotal;
 
-      // 1. Data setoran murni (ringan & cepat, TIDAK menyimpan string base64 video agar RAM tidak out of memory)
+      // Data setoran lokal murni (ringan & cepat, TIDAK menyimpan string base64 video agar RAM tidak out of memory)
       const setoranItem = {
         id: newId,
         tanggal: existing ? existing.tanggal : tgl,
@@ -9413,27 +9449,29 @@ function savePejabatGAS(pejabatObj) {
       notifyRealtimeChange('SAVE_SETORAN', { id: newId });
 
       if (isGasEnvironment() || getActiveGasUrl()) {
-        showToast(hasNewVideo ? 'Mengunggah video ke folder SIMTAQ Drive & mencatat ke Spreadsheet...' : 'Menyimpan data setoran ke Google Spreadsheet...', 'info');
+        showToast(hasNewVideo ? 'Mengunggah video ke SIMTAQ Google Drive & mencatat ke Spreadsheet...' : 'Menyimpan data setoran ke Google Spreadsheet...', 'info');
 
-        // Objek payload khusus upload cloud dengan base64 terpisah
+        // Payload cloud dengan data video base64 yang sudah dipastikan ada
         const cloudPayload = {
           ...setoranItem,
-          videoBase64: hasNewVideo ? (currentRecordedBase64 || '') : '',
-          videoMimeType: currentVideoMimeType || 'video/webm'
+          videoBase64: hasNewVideo ? (uploadBase64 || '') : '',
+          videoMimeType: uploadMime
         };
 
         const res = await callCloudBackend('saveSetoranWithVideo', cloudPayload);
 
-        // Langsung kosongkan base64 untuk membebaskan RAM seketika
-        cloudPayload.videoBase64 = '';
-        currentRecordedBase64 = null;
+        // Segera kosongkan base64 untuk membebaskan RAM seketika
+        uploadBase64 = null;
+        cloudPayload.videoBase64 = null;
 
         if (res && (res.status === 'success' || res.videoUrl)) {
           if (res.videoUrl) {
+            setoranItem.hasVideo = true;
             setoranItem.driveUrl = res.videoUrl;
             setoranItem.videoBlobUrl = res.videoUrl;
             const targetItem = appState.setoran.find(x => x.id === setoranItem.id);
             if (targetItem) {
+              targetItem.hasVideo = true;
               targetItem.driveUrl = res.videoUrl;
               targetItem.videoBlobUrl = res.videoUrl;
             }
@@ -9441,7 +9479,7 @@ function savePejabatGAS(pejabatObj) {
             refreshAllViews();
           }
           updateSyncStatusBadge('connected');
-          showToast('Data setoran & link video Google Drive berhasil disimpan ke Spreadsheet!', 'success');
+          showToast(hasNewVideo ? 'Video hafalan santri berhasil diunggah ke Google Drive & tersimpan di Spreadsheet!' : 'Data setoran hafalan berhasil disimpan ke Google Spreadsheet!', 'success');
         } else {
           updateSyncStatusBadge('offline');
           showToast('⚠️ Setoran tersimpan di memori lokal. Gagal sinkron ke Spreadsheet (URL GAS offline / 404).', 'warning');
@@ -9480,9 +9518,6 @@ function savePejabatGAS(pejabatObj) {
       document.getElementById('setoranCatatan').value = item.catatan || '';
 
       const btnSubmit = document.getElementById('btnSubmitSetoran');
-      if (btnSubmit) {
-        btnSubmit.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Simpan Perubahan Setoran ke Database';
-      }
 
       const localBlob = await getVideoBlobLocal(item.id);
       if (localBlob) {
@@ -9494,6 +9529,10 @@ function savePejabatGAS(pejabatObj) {
         showToast('Setoran ini sudah memiliki video di Google Drive. Anda dapat merekam ulang jika ingin menggantinya.', 'info');
       } else {
         resetRecordedVideo();
+      }
+
+      if (btnSubmit) {
+        btnSubmit.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Simpan Perubahan Setoran ke Database';
       }
     }
 
@@ -10051,9 +10090,9 @@ function savePejabatGAS(pejabatObj) {
       "    } catch (driveErr) {",
       "      Logger.log('Drive upload error: ' + driveErr.toString());",
       "    }",
-      "  } else if (payload.videoBlobUrl && payload.videoBlobUrl.startsWith('http')) {",
+      "  } else if ((payload.driveUrl && String(payload.driveUrl).startsWith('http')) || (payload.videoBlobUrl && String(payload.videoBlobUrl).startsWith('http'))) {",
       "    // 2. Pertahankan link Google Drive yang sudah ada jika hanya mengedit data hafalan",
-      "    videoUrl = payload.videoBlobUrl;",
+      "    videoUrl = (payload.driveUrl && String(payload.driveUrl).startsWith('http')) ? payload.driveUrl : payload.videoBlobUrl;",
       "  }",
       "",
       "  // Pindahkan juga file rekaman SIMTAQ sebelumnya yang sempat masuk ke Beranda/Root ke folder tujuan",
