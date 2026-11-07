@@ -5488,7 +5488,7 @@ function savePejabatGAS(pejabatObj) {
   <script>
     // TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT (.../exec) DARI DATABASE LAMA ANDA DI SINI
     // AGAR SAAT DIKEMBANGKAN DI GOOGLE ANTIGRAVITY IDE LANGSUNG TERHUBUNG KE SPREADSHEET & DRIVE LAMA:
-    const DEFAULT_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyzo2HlbkOVRBXXQQAoG1-5EK5hGeOUTquJ04WP1j_j8FOI8f8xA4queknKt5vFcHSg/exec';
+    const DEFAULT_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzyvo2HLbkOVR8XxQQAoG1-5EK5hGEoOUTquJ04WP1j_J8FOi8f8xA4queknKt5vFcHSg/exec';
 
     const STORAGE_KEY = 'SIMTAQ_MAN2_ABULYATAMA_DB_V10';
     const GAS_URL_STORAGE_KEY = 'SIMTAQ_EXISTING_GAS_URL';
@@ -5497,7 +5497,7 @@ function savePejabatGAS(pejabatObj) {
     function getActiveGasUrl() {
       const stored = localStorage.getItem(GAS_URL_STORAGE_KEY);
       // Bersihkan jika tersimpan URL deployment lama yang tidak aktif
-      if (stored && (stored.includes('AKfycby5cSPx82M9VmxRJRK2fmtFhC1b-duTNCeBNFyUf0hWZcoYWhGPx_a_hbe53Ku0TT-t') || !stored.startsWith('https://script.google.com'))) {
+      if (stored && (stored.includes('AKfycby5cSPx82M9VmxRJRK2fmtFhC1b-duTNCeBNFyUf0hWZcoYWhGPx_a_hbe53Ku0TT-t') || stored.includes('AKfycbyzo2HlbkOVRBXXQQAoG1-5EK5hGeOUTquJ04WP1j_j8FOI8f8xA4queknKt5vFcHSg') || !stored.startsWith('https://script.google.com'))) {
         try { localStorage.removeItem(GAS_URL_STORAGE_KEY); } catch (e) { }
         return DEFAULT_GAS_WEB_APP_URL;
       }
@@ -5506,15 +5506,15 @@ function savePejabatGAS(pejabatObj) {
 
     // Baseline Data Resmi SIMTAQ (Jangkar kebenaran data di semua browser & Chrome Profile)
     const DEFAULT_OFFICIAL_SANTRI = [
-      { id: 'SNT-01', nis: '2026001', nama: 'Frisilia Juliyanti H. Kasim', jk: 'Perempuan', kelas: 'X IPA 1', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-      { id: 'SNT-02', nis: '2026002', nama: 'Zitri Rahmatia Adam', jk: 'Perempuan', kelas: 'XI Agama', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-      { id: 'SNT-03', nis: '2026003', nama: 'Siti Nazifah Rahman', jk: 'Perempuan', kelas: 'X IPA 2', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-      { id: 'SNT-04', nis: '2026004', nama: 'Fatmatiya Ishak', jk: 'Perempuan', kelas: 'XI IPA 1', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-      { id: 'SNT-05', nis: '2026005', nama: 'Nazwa Khairyah Fadib', jk: 'Perempuan', kelas: 'X Agama', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' }
+      { id: 'SNT-01', nis: '1', nama: 'Frisilia Juliyanti H. Kasim', jk: 'Perempuan', kelas: 'X E', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+      { id: 'SNT-02', nis: '2', nama: 'Zitri Rahmatia Adam', jk: 'Perempuan', kelas: 'X E', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+      { id: 'SNT-1793850493475', nis: '3', nama: 'Siti Nazifah Rahman', jk: 'Perempuan', kelas: 'X B', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+      { id: 'SNT-1793850523998', nis: '4', nama: 'Fatmatiya Ishak', jk: 'Perempuan', kelas: 'XI C', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+      { id: 'SNT-1793850571938', nis: '5', nama: 'Nazwa Khairyah Fadib', jk: 'Perempuan', kelas: 'X C', asrama: 'RQ PPA', juz: 2, status: 'Aktif' }
     ];
 
     const DEFAULT_OFFICIAL_USTADZ = [
-      { id: 'UST-01', nip: '198904122019032015', nama: 'Ustadzah Maryam Ali', lembaga: 'MAN 2 Kab. Gorontalo', halaqah: 'Halaqah Khadijah (Putri)', kontak: '081234567890', status: 'Aktif' }
+      { id: 'UST-02', nip: '12345678910', nama: 'Ustadzah Maryam Ali', lembaga: 'Yayasan Abulyatama Indonesia', halaqah: 'Halaqah Putri', kontak: '85399024834', status: 'Aktif' }
     ];
 
     const DEFAULT_OFFICIAL_SETORAN = [];
@@ -5528,7 +5528,7 @@ function savePejabatGAS(pejabatObj) {
       { id: 'USR-04', username: 'mama_siti', password: 'vriipf', nama: 'Orang Tua (Siti Nazifah Rahman)', peran: 'ortu', refId: 'SNT-03', status: 'Aktif' },
       { id: 'USR-05', username: 'mama_fatmatiya', password: 't65vhr', nama: 'Orang Tua (Fatmatiya Ishak)', peran: 'ortu', refId: 'SNT-04', status: 'Aktif' },
       { id: 'USR-06', username: 'mama_nazwa', password: '9vqc8f', nama: 'Orang Tua (Nazwa Khairyah Fadib)', peran: 'ortu', refId: 'SNT-05', status: 'Aktif' },
-      { id: 'USR-07', username: 'maryamali', password: 'maryam', nama: 'Ustadzah Maryam Ali', peran: 'ustadz', refId: 'UST-01', status: 'Aktif' }
+      { id: 'USR-07', username: 'maryamali', password: 'maryam', nama: 'Ustadzah Maryam Ali', peran: 'ustadz', refId: 'UST-02', status: 'Aktif' }
     ];
 
     // Fungsi Jembatan Cloud Dual-Mode (Bekerja di Google Antigravity IDE, GitHub Pages, & Google Apps Script)
@@ -7755,7 +7755,7 @@ function savePejabatGAS(pejabatObj) {
       if (!user) return false;
       const uNis = String(user.nis || user.refId || '').trim().toLowerCase();
       const uSantriId = String(user.santriId || user.refId || '').trim().toLowerCase();
-      const uName = String(user.name || '').toLowerCase();
+      const uName = String(user.name || user.nama || '').toLowerCase();
 
       const itemNis = String(item.nis || '').trim().toLowerCase();
       const itemSantriId = String(item.santriId || item.id || '').trim().toLowerCase();
@@ -9851,15 +9851,15 @@ function savePejabatGAS(pejabatObj) {
       "  };",
       "",
       "  const defaultSantri = [",
-      "    { id: 'SNT-01', nis: '2026001', nama: 'Frisilia Juliyanti H. Kasim', jk: 'Perempuan', kelas: 'X IPA 1', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },",
-      "    { id: 'SNT-02', nis: '2026002', nama: 'Zitri Rahmatia Adam', jk: 'Perempuan', kelas: 'XI Agama', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },",
-      "    { id: 'SNT-03', nis: '2026003', nama: 'Siti Nazifah Rahman', jk: 'Perempuan', kelas: 'X IPA 2', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },",
-      "    { id: 'SNT-04', nis: '2026004', nama: 'Fatmatiya Ishak', jk: 'Perempuan', kelas: 'XI IPA 1', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },",
-      "    { id: 'SNT-05', nis: '2026005', nama: 'Nazwa Khairyah Fadib', jk: 'Perempuan', kelas: 'X Agama', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' }",
+      "    { id: 'SNT-01', nis: '1', nama: 'Frisilia Juliyanti H. Kasim', jk: 'Perempuan', kelas: 'X E', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },",
+      "    { id: 'SNT-02', nis: '2', nama: 'Zitri Rahmatia Adam', jk: 'Perempuan', kelas: 'X E', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },",
+      "    { id: 'SNT-1793850493475', nis: '3', nama: 'Siti Nazifah Rahman', jk: 'Perempuan', kelas: 'X B', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },",
+      "    { id: 'SNT-1793850523998', nis: '4', nama: 'Fatmatiya Ishak', jk: 'Perempuan', kelas: 'XI C', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },",
+      "    { id: 'SNT-1793850571938', nis: '5', nama: 'Nazwa Khairyah Fadib', jk: 'Perempuan', kelas: 'X C', asrama: 'RQ PPA', juz: 2, status: 'Aktif' }",
       "  ];",
       "",
       "  const defaultUstadz = [",
-      "    { id: 'UST-01', nip: '198904122019032015', nama: 'Ustadzah Maryam Ali', lembaga: 'MAN 2 Kab. Gorontalo', halaqah: 'Halaqah Khadijah (Putri)', kontak: '081234567890', status: 'Aktif' }",
+      "    { id: 'UST-02', nip: '12345678910', nama: 'Ustadzah Maryam Ali', lembaga: 'Yayasan Abulyatama Indonesia', halaqah: 'Halaqah Putri', kontak: '85399024834', status: 'Aktif' }",
       "  ];",
       "",
       "  const defaultSetoran = [",
@@ -9879,7 +9879,7 @@ function savePejabatGAS(pejabatObj) {
       "    { id: 'USR-04', username: 'mama_siti', password: 'vriipf', nama: 'Orang Tua (Siti Nazifah Rahman)', peran: 'ortu', refId: 'SNT-03', status: 'Aktif' },",
       "    { id: 'USR-05', username: 'mama_fatmatiya', password: 't65vhr', nama: 'Orang Tua (Fatmatiya Ishak)', peran: 'ortu', refId: 'SNT-04', status: 'Aktif' },",
       "    { id: 'USR-06', username: 'mama_nazwa', password: '9vqc8f', nama: 'Orang Tua (Nazwa Khairyah Fadib)', peran: 'ortu', refId: 'SNT-05', status: 'Aktif' },",
-      "    { id: 'USR-07', username: 'maryamali', password: 'maryam', nama: 'Ustadzah Maryam Ali', peran: 'ustadz', refId: 'UST-01', status: 'Aktif' }",
+      "    { id: 'USR-07', username: 'maryamali', password: 'maryam', nama: 'Ustadzah Maryam Ali', peran: 'ustadz', refId: 'UST-02', status: 'Aktif' }",
       "  ];",
       "",
       "  // Saring hanya data riil (bersihkan data dummy lama jika masih tersimpan di Spreadsheet)",

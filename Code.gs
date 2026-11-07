@@ -212,15 +212,15 @@ function getAllSimtaqData() {
   };
 
   const defaultSantri = [
-    { id: 'SNT-01', nis: '2026001', nama: 'Frisilia Juliyanti H. Kasim', jk: 'Perempuan', kelas: 'X IPA 1', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-    { id: 'SNT-02', nis: '2026002', nama: 'Zitri Rahmatia Adam', jk: 'Perempuan', kelas: 'XI Agama', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-    { id: 'SNT-03', nis: '2026003', nama: 'Siti Nazifah Rahman', jk: 'Perempuan', kelas: 'X IPA 2', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-    { id: 'SNT-04', nis: '2026004', nama: 'Fatmatiya Ishak', jk: 'Perempuan', kelas: 'XI IPA 1', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' },
-    { id: 'SNT-05', nis: '2026005', nama: 'Nazwa Khairyah Fadib', jk: 'Perempuan', kelas: 'X Agama', asrama: 'Asrama Putri Abulyatama', juz: 30, status: 'Aktif' }
+    { id: 'SNT-01', nis: '1', nama: 'Frisilia Juliyanti H. Kasim', jk: 'Perempuan', kelas: 'X E', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+    { id: 'SNT-02', nis: '2', nama: 'Zitri Rahmatia Adam', jk: 'Perempuan', kelas: 'X E', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+    { id: 'SNT-1793850493475', nis: '3', nama: 'Siti Nazifah Rahman', jk: 'Perempuan', kelas: 'X B', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+    { id: 'SNT-1793850523998', nis: '4', nama: 'Fatmatiya Ishak', jk: 'Perempuan', kelas: 'XI C', asrama: 'RQ PPA', juz: 2, status: 'Aktif' },
+    { id: 'SNT-1793850571938', nis: '5', nama: 'Nazwa Khairyah Fadib', jk: 'Perempuan', kelas: 'X C', asrama: 'RQ PPA', juz: 2, status: 'Aktif' }
   ];
 
   const defaultUstadz = [
-    { id: 'UST-01', nip: '198904122019032015', nama: 'Ustadzah Maryam Ali', lembaga: 'MAN 2 Kab. Gorontalo', halaqah: 'Halaqah Khadijah (Putri)', kontak: '081234567890', status: 'Aktif' }
+    { id: 'UST-02', nip: '12345678910', nama: 'Ustadzah Maryam Ali', lembaga: 'Yayasan Abulyatama Indonesia', halaqah: 'Halaqah Putri', kontak: '85399024834', status: 'Aktif' }
   ];
 
   const defaultSetoran = [
@@ -240,7 +240,7 @@ function getAllSimtaqData() {
     { id: 'USR-04', username: 'mama_siti', password: 'vriipf', nama: 'Orang Tua (Siti Nazifah Rahman)', peran: 'ortu', refId: 'SNT-03', status: 'Aktif' },
     { id: 'USR-05', username: 'mama_fatmatiya', password: 't65vhr', nama: 'Orang Tua (Fatmatiya Ishak)', peran: 'ortu', refId: 'SNT-04', status: 'Aktif' },
     { id: 'USR-06', username: 'mama_nazwa', password: '9vqc8f', nama: 'Orang Tua (Nazwa Khairyah Fadib)', peran: 'ortu', refId: 'SNT-05', status: 'Aktif' },
-    { id: 'USR-07', username: 'maryamali', password: 'maryam', nama: 'Ustadzah Maryam Ali', peran: 'ustadz', refId: 'UST-01', status: 'Aktif' }
+    { id: 'USR-07', username: 'maryamali', password: 'maryam', nama: 'Ustadzah Maryam Ali', peran: 'ustadz', refId: 'UST-02', status: 'Aktif' }
   ];
 
   // Saring hanya data riil (bersihkan data dummy lama jika masih tersimpan di Spreadsheet)
