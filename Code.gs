@@ -271,7 +271,8 @@ function getAllSimtaqData() {
       ustadz: r[9],
       catatan: r[10],
       hasVideo: r[11] === 'TRUE' || (Boolean(r[12]) && !String(r[12]).startsWith('data:')),
-      videoBlobUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : ''
+      videoBlobUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : '',
+      driveUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : ''
     }));
   // Jika setoran kosong karena telah dihapus oleh Admin, pertahankan array kosong (jangan dibangkitkan lagi)
 
@@ -318,11 +319,14 @@ function saveSetoranWithVideo(payload) {
   let videoUrl = '';
 
   // 1. Jika ada video baru (data base64), upload langsung ke Google Drive SIMTAQ
-  if (payload.videoBase64 && payload.videoBase64.indexOf('base64,') !== -1) {
+  if (payload.videoBase64 && String(payload.videoBase64).trim().length > 100) {
     try {
       const folder = getDriveFolder_();
-      const parts = payload.videoBase64.split('base64,');
-      const bytes = Utilities.base64Decode(parts[1]);
+      let rawBase64 = String(payload.videoBase64);
+      if (rawBase64.indexOf('base64,') !== -1) {
+        rawBase64 = rawBase64.split('base64,')[1];
+      }
+      const bytes = Utilities.base64Decode(rawBase64);
       const cleanName = (payload.santriNama || 'Santri').replace(/[^a-zA-Z0-9]/g, '_');
       const mime = payload.videoMimeType || 'video/webm';
       const ext = (mime.indexOf('mp4') !== -1) ? '.mp4' : '.webm';

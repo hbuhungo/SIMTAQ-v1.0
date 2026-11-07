@@ -3184,8 +3184,8 @@
                 <div class="flex flex-wrap items-center gap-2">
                   <span id="userRoleBadge"
                     class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold uppercase border border-emerald-400/30">Administrator</span>
-                  <span id="syncStatusBadge" class="text-[10px] text-sky-300 font-semibold flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Database Siap
+                  <span id="syncStatusBadge" onclick="handleSyncStatusBadgeClick()" class="text-[10px] text-amber-300 font-semibold flex items-center gap-1.5 cursor-pointer hover:underline" title="Klik untuk status koneksi database">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Menghubungkan Spreadsheet...
                   </span>
                 </div>
                 <h2 class="text-base sm:text-xl font-black truncate" id="welcomeUserText">Assalamualaikum Wr. Wb, Administrator SIMTAQ</h2>
@@ -6247,11 +6247,45 @@ function savePejabatGAS(pejabatObj) {
       const container = document.getElementById('toastContainer');
       if (!container) return;
       const item = document.createElement('div');
-      const color = type === 'success' ? 'bg-emerald-700' : type === 'error' ? 'bg-rose-600' : 'bg-sky-700';
+      const color = type === 'success' ? 'bg-emerald-700' : type === 'error' ? 'bg-rose-600' : type === 'warning' ? 'bg-amber-600' : 'bg-sky-700';
+      const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-triangle-exclamation' : type === 'warning' ? 'fa-circle-exclamation' : 'fa-circle-info';
       item.className = `${color} text-white px-4 py-3 rounded-2xl shadow-xl text-xs font-bold flex items-center space-x-2 pointer-events-auto`;
-      item.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${msg}</span>`;
+      item.innerHTML = `<i class="fa-solid ${icon}"></i><span>${msg}</span>`;
       container.appendChild(item);
-      setTimeout(() => item.remove(), 3200);
+      setTimeout(() => item.remove(), 4000);
+    }
+
+    function updateSyncStatusBadge(status) {
+      const badge = document.getElementById('syncStatusBadge');
+      if (!badge) return;
+      if (status === 'connected') {
+        badge.className = 'text-[10px] text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer hover:underline';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Terhubung Spreadsheet &amp; Drive</span>';
+        badge.title = 'Koneksi Cloud SIMTAQ Aktif: Semua data & video tersinkronisasi real-time.';
+      } else if (status === 'loading') {
+        badge.className = 'text-[10px] text-amber-300 font-semibold flex items-center gap-1.5 cursor-pointer';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Menghubungkan Spreadsheet...</span>';
+        badge.title = 'Sedang menyinkronkan data ke Google Spreadsheet & Drive...';
+      } else {
+        badge.className = 'text-[10px] text-rose-300 font-bold flex items-center gap-1.5 cursor-pointer hover:underline';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Offline / GAS Terputus (Memori Lokal Saja)</span>';
+        badge.title = 'Peringatan: Belum terhubung ke Google Spreadsheet! Data hanya disimpan di memori perangkat ini. Klik untuk periksa koneksi.';
+      }
+    }
+
+    function handleSyncStatusBadgeClick() {
+      const badge = document.getElementById('syncStatusBadge');
+      const isConnected = badge && badge.innerHTML.includes('Terhubung');
+      if (isConnected) {
+        showToast('Koneksi database aktif: Semua data & video tersinkronisasi real-time ke Google Spreadsheet & Drive!', 'success');
+      } else {
+        if (appState.currentUser?.role === 'admin') {
+          switchDashTab('tab-gas');
+          showToast('Silakan periksa dan tempelkan URL Web App Google Apps Script di tab ini untuk menghubungkan cloud.', 'warning');
+        } else {
+          showToast('Database Spreadsheet belum terhubung. Silakan hubungi Administrator untuk memperbarui URL Google Apps Script.', 'error');
+        }
+      }
     }
 
     function persistLocalState() {
@@ -6352,6 +6386,14 @@ function savePejabatGAS(pejabatObj) {
 
     function handleIncomingRealtimePulse(pulse) {
       if (pulse && pulse.senderId === window.__SIMTAQ_WINDOW_ID__) return;
+      if (pulse && pulse.action === 'GAS_URL_UPDATED' && pulse.extra?.url) {
+        try {
+          localStorage.setItem(GAS_URL_STORAGE_KEY, pulse.extra.url);
+          const inp = document.getElementById('inputGasWebAppUrl');
+          if (inp) inp.value = pulse.extra.url;
+          syncCloudDataRealtime(true);
+        } catch (e) { }
+      }
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
@@ -6382,6 +6424,45 @@ function savePejabatGAS(pejabatObj) {
       const stHash = st.map(x => x.id + ':' + (x.nilai || '') + ':' + (x.surat || '')).join(';');
       const pgHash = pg.map(x => x.id + ':' + (x.username || '') + ':' + (x.password || '')).join(';');
       return `${st.length}|${sn.length}|${us.length}|${pg.length}|${tg.length}|${stHash}|${tgHash}|${pgHash}`;
+    }
+
+    async function uploadPendingSetoranToCloud(item) {
+      if (!item || !item.id) return;
+      if (!isGasEnvironment() && !getActiveGasUrl()) return;
+      try {
+        let base64 = '';
+        if (item.hasVideo && !item.driveUrl) {
+          const localBlob = await getVideoBlobLocal(item.id);
+          if (localBlob) {
+            base64 = await new Promise((resolve) => {
+              const r = new FileReader();
+              r.onloadend = () => resolve(r.result || '');
+              r.readAsDataURL(localBlob);
+            });
+          }
+        }
+        const cloudPayload = {
+          ...item,
+          videoBase64: base64,
+          videoMimeType: 'video/webm'
+        };
+        const res = await callCloudBackend('saveSetoranWithVideo', cloudPayload);
+        if (res && (res.status === 'success' || res.videoUrl)) {
+          if (res.videoUrl) {
+            item.driveUrl = res.videoUrl;
+            item.videoBlobUrl = res.videoUrl;
+            const target = (appState.setoran || []).find(x => x.id === item.id);
+            if (target) {
+              target.driveUrl = res.videoUrl;
+              target.videoBlobUrl = res.videoUrl;
+            }
+            persistLocalState();
+            refreshAllViews();
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal upload pending setoran ke cloud:', err);
+      }
     }
 
     async function syncCloudDataRealtime(isForced = false) {
@@ -6420,7 +6501,7 @@ function savePejabatGAS(pejabatObj) {
             }
           }
 
-          // 3. Data Setoran (JIKA DI CLOUD KOSONG, appState.setoran WAJIB KOSONG JUGA!)
+          // 3. Data Setoran (Sinkronisasi dua arah: Cloud -> Lokal, & Lokal yang tertunda -> Cloud)
           if (Array.isArray(res.setoran)) {
             const cleanSetoran = res.setoran
               .filter(s => s.nis !== '4334345' && s.nis !== '4334346')
@@ -6428,8 +6509,24 @@ function savePejabatGAS(pejabatObj) {
                 if (s.videoBase64) delete s.videoBase64;
                 return s;
               });
-            if (JSON.stringify(appState.setoran) !== JSON.stringify(cleanSetoran)) {
-              appState.setoran = cleanSetoran;
+
+            // Periksa setoran lokal yang belum masuk ke spreadsheet
+            const pendingUploads = (appState.setoran || []).filter(loc => 
+              loc && loc.id && !cleanSetoran.some(cloud => cloud.id === loc.id)
+            );
+            if (pendingUploads.length > 0) {
+              pendingUploads.forEach(p => uploadPendingSetoranToCloud(p));
+            }
+
+            const mergedSetoran = [...cleanSetoran];
+            pendingUploads.forEach(p => {
+              if (!mergedSetoran.some(m => m.id === p.id)) {
+                mergedSetoran.unshift(p);
+              }
+            });
+
+            if (JSON.stringify(appState.setoran) !== JSON.stringify(mergedSetoran)) {
+              appState.setoran = mergedSetoran;
               hasChanged = true;
             }
           }
@@ -6475,10 +6572,13 @@ function savePejabatGAS(pejabatObj) {
             lastCloudDataSignature = computeStateSignature(appState);
           }
 
-          setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Terhubung Database Spreadsheet & Drive');
+          updateSyncStatusBadge('connected');
+        } else {
+          updateSyncStatusBadge('offline');
         }
       } catch (err) {
         console.warn('Realtime cloud sync error:', err);
+        updateSyncStatusBadge('offline');
       } finally {
         isSyncingRealtimeCloud = false;
       }
@@ -6568,7 +6668,7 @@ function savePejabatGAS(pejabatObj) {
 
       // 2. Hubungkan langsung ke Google Spreadsheet Backend
       if (isGasEnvironment() || getActiveGasUrl()) {
-        setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Memuat Database Spreadsheet...');
+        updateSyncStatusBadge('loading');
         const res = await callCloudBackend('getAllSimtaqData');
         if (res) {
           if (res.playlist?.length) appState.playlist = res.playlist;
@@ -6587,7 +6687,20 @@ function savePejabatGAS(pejabatObj) {
                 if (s.videoBase64) delete s.videoBase64;
                 return s;
               });
-            appState.setoran = clean;
+
+            // Periksa jika ada setoran lokal yang belum masuk ke spreadsheet (misal saat rekaman offline)
+            const pendingUploads = (appState.setoran || []).filter(loc => 
+              loc && loc.id && !clean.some(cloud => cloud.id === loc.id)
+            );
+            if (pendingUploads.length > 0) {
+              pendingUploads.forEach(p => uploadPendingSetoranToCloud(p));
+            }
+
+            const merged = [...clean];
+            pendingUploads.forEach(p => {
+              if (!merged.some(m => m.id === p.id)) merged.unshift(p);
+            });
+            appState.setoran = merged;
           }
           if (Array.isArray(res.target)) {
             const clean = res.target.filter(t => t.nis !== '4334345' && t.nis !== '4334346');
@@ -6602,7 +6715,7 @@ function savePejabatGAS(pejabatObj) {
           persistLocalState();
           refreshAllViews();
           renderPlaylistUI();
-          setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Terhubung Database Spreadsheet & Drive');
+          updateSyncStatusBadge('connected');
 
           // Bersihkan akun dummy di Spreadsheet secara background jika masih ada baris lama
           callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Pengguna', recordId: 'ustadz' });
@@ -6610,10 +6723,10 @@ function savePejabatGAS(pejabatObj) {
           callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Santri', recordId: '4334345' });
           callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Santri', recordId: '4334346' });
         } else {
-          setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Database Siap');
+          updateSyncStatusBadge('offline');
         }
       } else {
-        setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Mode Database Siap');
+        updateSyncStatusBadge('offline');
       }
     }
 
@@ -6622,17 +6735,24 @@ function savePejabatGAS(pejabatObj) {
       localStorage.setItem(GAS_URL_STORAGE_KEY, val);
       if (!val) {
         showToast('URL Web App dikosongkan (Mode Penyimpanan Lokal).', 'info');
+        updateSyncStatusBadge('offline');
         loadInitialData();
         return;
       }
       showToast('Menghubungkan ke Database Spreadsheet & Drive...', 'info');
-      setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Menguji koneksi GAS...');
+      updateSyncStatusBadge('loading');
       const res = await callCloudBackend('getAllSimtaqData');
       if (res && (res.santri || res.setoran || res.ustadz || res.pejabat)) {
         if (res.playlist?.length) appState.playlist = res.playlist;
         if (res.santri?.length) appState.santri = res.santri;
         if (res.ustadz?.length) appState.ustadz = res.ustadz;
-        if (Array.isArray(res.setoran)) appState.setoran = res.setoran;
+        if (Array.isArray(res.setoran)) {
+          const clean = res.setoran.filter(s => s.nis !== '4334345' && s.nis !== '4334346');
+          const pending = (appState.setoran || []).filter(loc => loc && loc.id && !clean.some(c => c.id === loc.id));
+          pending.forEach(p => uploadPendingSetoranToCloud(p));
+          appState.setoran = [...clean];
+          pending.forEach(p => { if (!appState.setoran.some(m => m.id === p.id)) appState.setoran.unshift(p); });
+        }
         if (Array.isArray(res.target)) appState.target = res.target;
         if (res.pejabat && Object.keys(res.pejabat).length) {
           appState.pejabat = { ...appState.pejabat, ...res.pejabat };
@@ -6641,11 +6761,12 @@ function savePejabatGAS(pejabatObj) {
         persistLocalState();
         refreshAllViews();
         renderPlaylistUI();
-        setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Terhubung Database Spreadsheet & Drive');
+        updateSyncStatusBadge('connected');
+        notifyRealtimeChange('GAS_URL_UPDATED', { url: val });
         showToast('Berhasil terhubung ke Database Spreadsheet & Drive yang sudah ada!', 'success');
       } else {
-        setElHTML('syncStatusBadge', '<span class="w-2 h-2 rounded-full bg-red-400"></span> Gagal Terhubung ke Spreadsheet');
-        showToast('Gagal terhubung ke Spreadsheet! Pastikan hak akses Web App disetel "Siapa saja (Anyone)" dan script sudah diotorisasi di Apps Script.', 'error');
+        updateSyncStatusBadge('offline');
+        showToast('Gagal terhubung ke Spreadsheet! Pastikan hak akses Web App disetel "Siapa saja (Anyone)" dan versi deployment sudah "Versi Baru".', 'error');
       }
     }
 
@@ -7630,16 +7751,32 @@ function savePejabatGAS(pejabatObj) {
       }).join('');
     }
 
+    function isOrtuMatch(item, user) {
+      if (!user) return false;
+      const uNis = String(user.nis || user.refId || '').trim().toLowerCase();
+      const uSantriId = String(user.santriId || user.refId || '').trim().toLowerCase();
+      const uName = String(user.name || '').toLowerCase();
+
+      const itemNis = String(item.nis || '').trim().toLowerCase();
+      const itemSantriId = String(item.santriId || item.id || '').trim().toLowerCase();
+      const itemNama = String(item.santriNama || item.nama || '').toLowerCase();
+
+      if (uNis && itemNis && uNis === itemNis) return true;
+      if (uSantriId && itemSantriId && uSantriId === itemSantriId) return true;
+      if (itemNama && uName && (uName.includes(itemNama) || itemNama.includes(uName))) return true;
+      return false;
+    }
+
     function refreshAllViews() {
       const isOrtu = appState.currentUser?.role === 'ortu';
       const activeSantri = isOrtu
-        ? appState.santri.filter(s => s.nis === appState.currentUser.nis || s.id === appState.currentUser.santriId)
+        ? appState.santri.filter(s => isOrtuMatch(s, appState.currentUser))
         : appState.santri;
       const activeSetoran = isOrtu
-        ? appState.setoran.filter(s => s.nis === appState.currentUser.nis || s.santriId === appState.currentUser.santriId)
+        ? appState.setoran.filter(s => isOrtuMatch(s, appState.currentUser))
         : appState.setoran;
       const activeTarget = isOrtu
-        ? appState.target.filter(t => t.nis === appState.currentUser.nis || t.santriId === appState.currentUser.santriId)
+        ? appState.target.filter(t => isOrtuMatch(t, appState.currentUser))
         : appState.target;
 
       const avg = activeSetoran.length
@@ -9247,12 +9384,15 @@ function savePejabatGAS(pejabatObj) {
             persistLocalState();
             refreshAllViews();
           }
+          updateSyncStatusBadge('connected');
           showToast('Data setoran & link video Google Drive berhasil disimpan ke Spreadsheet!', 'success');
         } else {
-          showToast('Setoran tersimpan di memori perangkat lokal. Gagal sinkron ke Spreadsheet.', 'info');
+          updateSyncStatusBadge('offline');
+          showToast('⚠️ Setoran tersimpan di memori lokal. Gagal sinkron ke Spreadsheet (URL GAS offline / 404).', 'warning');
         }
         await syncCloudDataRealtime(true);
       } else {
+        updateSyncStatusBadge('offline');
         showToast('Setoran hafalan berhasil disimpan di penyimpanan browser!', 'success');
       }
     }
@@ -9770,7 +9910,8 @@ function savePejabatGAS(pejabatObj) {
       "      ustadz: r[9],",
       "      catatan: r[10],",
       "      hasVideo: r[11] === 'TRUE' || (Boolean(r[12]) && !String(r[12]).startsWith('data:')),",
-      "      videoBlobUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : ''",
+      "      videoBlobUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : '',",
+      "      driveUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : ''",
       "    }));",
       "  // Jika setoran kosong karena telah dihapus oleh Admin, pertahankan array kosong (jangan dibangkitkan lagi)",
       "",
@@ -9817,11 +9958,14 @@ function savePejabatGAS(pejabatObj) {
       "  let videoUrl = '';",
       "",
       "  // 1. Jika ada video baru (data base64), upload langsung ke Google Drive SIMTAQ",
-      "  if (payload.videoBase64 && payload.videoBase64.indexOf('base64,') !== -1) {",
+      "  if (payload.videoBase64 && String(payload.videoBase64).trim().length > 100) {",
       "    try {",
       "      const folder = getDriveFolder_();",
-      "      const parts = payload.videoBase64.split('base64,');",
-      "      const bytes = Utilities.base64Decode(parts[1]);",
+      "      let rawBase64 = String(payload.videoBase64);",
+      "      if (rawBase64.indexOf('base64,') !== -1) {",
+      "        rawBase64 = rawBase64.split('base64,')[1];",
+      "      }",
+      "      const bytes = Utilities.base64Decode(rawBase64);",
       "      const cleanName = (payload.santriNama || 'Santri').replace(/[^a-zA-Z0-9]/g, '_');",
       "      const mime = payload.videoMimeType || 'video/webm';",
       "      const ext = (mime.indexOf('mp4') !== -1) ? '.mp4' : '.webm';",
