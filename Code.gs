@@ -21,6 +21,11 @@ function getDriveFolder_() {
     try {
       const folderById = DriveApp.getFolderById(DRIVE_FOLDER_ID);
       if (folderById && !folderById.isTrashed()) {
+        try {
+          folderById.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (eShare) {
+          Logger.log('Set sharing folder info: ' + eShare.toString());
+        }
         return folderById;
       }
     } catch (e) {
@@ -34,6 +39,9 @@ function getDriveFolder_() {
     while (folders.hasNext()) {
       const f = folders.next();
       if (!f.isTrashed()) {
+        try {
+          f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (eF) { }
         return f;
       }
     }
@@ -270,9 +278,9 @@ function getAllSimtaqData() {
       nilai: Number(r[8] || 0),
       ustadz: r[9],
       catatan: r[10],
-      hasVideo: r[11] === 'TRUE' || (Boolean(r[12]) && !String(r[12]).startsWith('data:')),
-      videoBlobUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : '',
-      driveUrl: (r[12] && String(r[12]).startsWith('http')) ? r[12] : ''
+      hasVideo: String(r[11] || '').trim().toUpperCase() === 'TRUE' || (Boolean(r[12]) && String(r[12]).trim().startsWith('http')),
+      videoBlobUrl: (r[12] && String(r[12]).trim().startsWith('http')) ? String(r[12]).trim() : '',
+      driveUrl: (r[12] && String(r[12]).trim().startsWith('http')) ? String(r[12]).trim() : ''
     }));
   // Jika setoran kosong karena telah dihapus oleh Admin, pertahankan array kosong (jangan dibangkitkan lagi)
 
@@ -334,7 +342,7 @@ function saveSetoranWithVideo(payload) {
       const blob = Utilities.newBlob(bytes, mime, fileName);
       const file = folder.createFile(blob);
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      videoUrl = file.getUrl();
+      videoUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view?usp=sharing';
 
       // Pastikan file tidak tercecer di Beranda (Root) Drive Saya jika folder tujuan berbeda
       try {
