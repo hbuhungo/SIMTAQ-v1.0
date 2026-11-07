@@ -6732,7 +6732,7 @@ function initFirestoreRealtimeListeners() {
         loadInitialData();
         return;
       }
-      showToast('Menghubungkan ke Database Spreadsheet & Drive...', 'info');
+      showToast('Menghubungkan ke Cloud Storage & Database...', 'info');
       updateSyncStatusBadge('loading');
       const res = await callCloudBackend('getAllSimtaqData');
       if (res && (res.santri || res.setoran || res.ustadz || res.pejabat)) {
@@ -6758,10 +6758,10 @@ function initFirestoreRealtimeListeners() {
         renderPlaylistUI();
         updateSyncStatusBadge('connected');
         notifyRealtimeChange('GAS_URL_UPDATED', { url: val });
-        showToast('Berhasil terhubung ke Database Spreadsheet & Drive yang sudah ada!', 'success');
+        showToast('Berhasil terhubung ke Cloud Service SIMTAQ!', 'success');
       } else {
         updateSyncStatusBadge('offline');
-        showToast('Gagal terhubung ke Spreadsheet! Pastikan hak akses Web App disetel "Siapa saja (Anyone)" dan versi deployment sudah "Versi Baru".', 'error');
+        showToast('Gagal terhubung ke Cloud Service. Periksa koneksi internet atau deployment link Anda.', 'error');
       }
     }
 
@@ -6795,7 +6795,7 @@ function initFirestoreRealtimeListeners() {
         { id: 'tab-target', icon: 'fa-bullseye', label: 'Target Hafalan' },
         { id: 'tab-laporan', icon: 'fa-file-lines', label: 'Laporan & Rapor' },
         { id: 'tab-musik', icon: 'fa-book-quran', label: 'Kelola Murotal' },
-        { id: 'tab-gas', icon: 'fa-code', label: 'Pengaturan & GAS' }
+        { id: 'tab-gas', icon: 'fa-fire text-amber-400', label: 'Pengaturan & Firebase' }
       ];
     }
 
@@ -7545,7 +7545,7 @@ function initFirestoreRealtimeListeners() {
             ? 'Pantau progres hafalan, rekaman video setoran, dan rapor putra/putri Anda.'
             : role === 'ustadz'
               ? 'Kelola input setoran hafalan, rekam video santri, dan evaluasi target.'
-              : 'Hak akses penuh manajemen Santri, Ustadz/Ustadzah, Link YouTube Murotal, Pimpinan, dan GAS.'
+              : 'Hak akses penuh manajemen Santri, Ustadz/Ustadzah, Link YouTube Murotal, Pimpinan, dan Firebase Realtime.'
         );
       }
 
@@ -9415,39 +9415,40 @@ function initFirestoreRealtimeListeners() {
         uploadBase64 = null;
         cloudPayload.videoBase64 = null;
 
-        if (res && (res.status === 'success' || res.videoUrl)) {
-          if (res.videoUrl) {
-            setoranItem.hasVideo = true;
-            setoranItem.driveUrl = res.videoUrl;
-            setoranItem.videoBlobUrl = res.videoUrl;
-            const targetItem = appState.setoran.find(x => x.id === setoranItem.id);
-            if (targetItem) {
-              targetItem.hasVideo = true;
-              targetItem.driveUrl = res.videoUrl;
-              targetItem.videoBlobUrl = res.videoUrl;
-            }
-
-            // Perbarui URL video permanen di Firebase Firestore (Terpantul langsung ke tombol Putar Video)
-            if (fbDb) {
-              fbDb.collection('setoran').doc(setoranItem.id).set({
-                hasVideo: true,
-                driveUrl: res.videoUrl,
-                videoBlobUrl: res.videoUrl
-              }, { merge: true }).catch(err => {
-                console.warn('Firestore setoran videoUrl update notice:', err);
-              });
-            }
-
-            persistLocalState();
-            refreshAllViews();
+        const returnedVideoUrl = res?.videoUrl || res?.result?.videoUrl || '';
+        if (returnedVideoUrl) {
+          setoranItem.hasVideo = true;
+          setoranItem.driveUrl = returnedVideoUrl;
+          setoranItem.videoBlobUrl = returnedVideoUrl;
+          const targetItem = appState.setoran.find(x => x.id === setoranItem.id);
+          if (targetItem) {
+            targetItem.hasVideo = true;
+            targetItem.driveUrl = returnedVideoUrl;
+            targetItem.videoBlobUrl = returnedVideoUrl;
           }
+
+          // Perbarui URL video permanen di Firebase Firestore (Terpantul langsung ke tombol Putar Video di semua HP/PC)
+          if (fbDb) {
+            fbDb.collection('setoran').doc(setoranItem.id).set({
+              hasVideo: true,
+              driveUrl: returnedVideoUrl,
+              videoBlobUrl: returnedVideoUrl
+            }, { merge: true }).catch(err => {
+              console.warn('Firestore setoran videoUrl update notice:', err);
+            });
+          }
+
+          persistLocalState();
+          refreshAllViews();
+        }
+
+        if (res && (res.status === 'success' || returnedVideoUrl)) {
           updateSyncStatusBadge('connected');
           showToast(hasNewVideo ? 'Video hafalan santri berhasil diunggah & tersimpan ke Firebase Firestore!' : 'Data setoran hafalan berhasil disimpan ke Firebase Firestore!', 'success');
         } else {
           updateSyncStatusBadge('offline');
           showToast('⚠️ Berkas video gagal diunggah, namun data setoran tetap aman tersimpan di Firebase Firestore.', 'info');
         }
-        await syncCloudDataRealtime(true);
       } else {
         updateSyncStatusBadge('offline');
         showToast('Setoran hafalan berhasil disimpan di penyimpanan browser!', 'success');
@@ -9670,6 +9671,20 @@ function initFirestoreRealtimeListeners() {
           if (v) v.classList.add('hidden');
           if (standby) standby.classList.add('hidden');
         }
+      } else if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        // Video dari URL Cloud / Direct Streaming
+        if (badgeText) {
+          badgeText.innerHTML = '<i class="fa-solid fa-cloud text-emerald-600 mr-1.5"></i><span>Streaming Cloud</span>';
+        }
+        if (subText) subText.textContent = 'Akses Cloud';
+        if (notice) notice.classList.add('hidden');
+        if (v) {
+          v.src = url;
+          v.classList.remove('hidden');
+          v.muted = false;
+          v.play().catch(() => { });
+        }
+        if (iframe) iframe.classList.add('hidden');
       } else if (url && url.startsWith('data:')) {
         // Fallback base64
         if (v) {
