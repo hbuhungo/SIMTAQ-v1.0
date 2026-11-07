@@ -17,6 +17,9 @@
     rel="stylesheet">
   <!-- YouTube IFrame API untuk Pemutar Murotal Link YouTube -->
   <script src="https://www.youtube.com/iframe_api"></script>
+  <!-- Firebase SDK v10 (Compat - Realtime Cloud Firestore Database) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <script>
     tailwind.config = {
@@ -5494,6 +5497,137 @@ function savePejabatGAS(pejabatObj) {
     const GAS_URL_STORAGE_KEY = 'SIMTAQ_EXISTING_GAS_URL';
     const isGasEnvironment = () => typeof google !== 'undefined' && google.script && google.script.run;
 
+    // =========================================================================
+    // KONFIGURASI RESMI FIREBASE FIRESTORE REALTIME DATABASE (SIMTAQ-MAN2)
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCr8FUxkQua7U65PZsX7xJ0QYl40EbfNlQ",
+      authDomain: "simtaq-man2.firebaseapp.com",
+      projectId: "simtaq-man2",
+      storageBucket: "simtaq-man2.firebasestorage.app",
+      messagingSenderId: "348130160676",
+      appId: "1:348130160676:web:8d8245b0e03db9ec3168b1"
+    };
+
+    let fbApp = null;
+    let fbDb = null;
+    let isFirestoreActive = false;
+
+    try {
+      if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+          fbApp = firebase.initializeApp(firebaseConfig);
+        } else {
+          fbApp = firebase.app();
+        }
+        fbDb = firebase.firestore();
+        isFirestoreActive = true;
+        fbDb.enablePersistence({ synchronizeTabs: true }).catch(err => {
+          console.warn('Firestore offline persistence notice:', err.code);
+        });
+      }
+    } catch (fbInitErr) {
+      console.warn('Firebase init notice:', fbInitErr);
+    }
+
+    function sanitizeForFirestore(obj) {
+      if (!obj || typeof obj !== 'object') return {};
+      const clean = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (v === undefined) continue;
+        if (k === 'videoBase64') continue; // Cegah string Base64 besar masuk ke dokumen Firestore
+        clean[k] = v;
+      }
+      return clean;
+    }
+
+    let isFirestoreListening = false;
+    function initFirestoreRealtimeListeners() {
+      if (!fbDb || isFirestoreListening) return;
+      isFirestoreListening = true;
+
+      // 1. Santri Realtime Listener
+      fbDb.collection('santri').onSnapshot(snap => {
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        if (items.length > 0) {
+          appState.santri = items;
+          persistLocalState();
+          refreshAllViews();
+          updateSyncStatusBadge('connected');
+        }
+      }, err => console.warn('Firestore santri listener error:', err));
+
+      // 2. Ustadz Realtime Listener
+      fbDb.collection('ustadz').onSnapshot(snap => {
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        if (items.length > 0) {
+          appState.ustadz = items;
+          persistLocalState();
+          refreshAllViews();
+          updateSyncStatusBadge('connected');
+        }
+      }, err => console.warn('Firestore ustadz listener error:', err));
+
+      // 3. Setoran Realtime Listener (Sub-detik langsung terpantul ke seluruh perangkat)
+      fbDb.collection('setoran').onSnapshot(snap => {
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        items.sort((a, b) => {
+          const tA = a.id ? a.id.replace(/\D/g, '') : 0;
+          const tB = b.id ? b.id.replace(/\D/g, '') : 0;
+          return Number(tB) - Number(tA);
+        });
+        appState.setoran = items;
+        persistLocalState();
+        refreshAllViews();
+        updateSyncStatusBadge('connected');
+      }, err => console.warn('Firestore setoran listener error:', err));
+
+      // 4. Target Realtime Listener
+      fbDb.collection('target').onSnapshot(snap => {
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        appState.target = items;
+        persistLocalState();
+        refreshAllViews();
+        updateSyncStatusBadge('connected');
+      }, err => console.warn('Firestore target listener error:', err));
+
+      // 5. Pengguna Realtime Listener
+      fbDb.collection('pengguna').onSnapshot(snap => {
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        if (items.length > 0) {
+          syncCloudPengguna(items);
+          persistLocalState();
+          refreshAllViews();
+          updateSyncStatusBadge('connected');
+        }
+      }, err => console.warn('Firestore pengguna listener error:', err));
+
+      // 6. Pejabat Realtime Listener
+      fbDb.collection('pengaturan').doc('pejabat').onSnapshot(doc => {
+        if (doc.exists) {
+          appState.pejabat = { ...appState.pejabat, ...doc.data() };
+          persistLocalState();
+          refreshAllViews();
+        }
+      }, err => console.warn('Firestore pejabat listener error:', err));
+
+      // 7. Playlist Realtime Listener
+      fbDb.collection('playlist').onSnapshot(snap => {
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        if (items.length > 0) {
+          appState.playlist = items;
+          persistLocalState();
+          refreshAllViews();
+        }
+      }, err => console.warn('Firestore playlist listener error:', err));
+    }
+
     function getActiveGasUrl() {
       const stored = localStorage.getItem(GAS_URL_STORAGE_KEY);
       // Bersihkan jika tersimpan URL deployment lama yang tidak aktif
@@ -6147,6 +6281,9 @@ function savePejabatGAS(pejabatObj) {
       }
 
       persistLocalState();
+      if (fbDb) {
+        fbDb.collection('playlist').doc(trackObj.id).set(sanitizeForFirestore(trackObj)).catch(e => console.warn('Firestore playlist save notice:', e));
+      }
       callCloudBackend('upsertMusicGAS', trackObj);
       resetMusicForm();
       renderPlaylistUI();
@@ -6168,6 +6305,9 @@ function savePejabatGAS(pejabatObj) {
       }
 
       persistLocalState();
+      if (fbDb) {
+        fbDb.collection('playlist').doc(id).delete().catch(e => console.warn('Firestore playlist delete notice:', e));
+      }
       callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Musik_Latar', recordId: id });
       renderPlaylistUI();
       showToast('Murotal berhasil dihapus dari playlist.');
@@ -6260,8 +6400,8 @@ function savePejabatGAS(pejabatObj) {
       if (!badge) return;
       if (status === 'connected') {
         badge.className = 'text-[10px] text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer hover:underline';
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Terhubung Spreadsheet &amp; Drive</span>';
-        badge.title = 'Koneksi Cloud SIMTAQ Aktif: Semua data & video tersinkronisasi real-time.';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Terhubung Firebase Realtime &amp; Drive</span>';
+        badge.title = 'Koneksi Cloud Firestore Aktif: Semua data & video tersinkronisasi real-time sub-detik dua arah ke seluruh perangkat.';
       } else if (status === 'loading') {
         badge.className = 'text-[10px] text-amber-300 font-semibold flex items-center gap-1.5 cursor-pointer';
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Menghubungkan Spreadsheet...</span>';
@@ -6725,6 +6865,11 @@ function savePejabatGAS(pejabatObj) {
       if (!Array.isArray(appState.target)) appState.target = [];
       syncCloudPengguna(appState.pengguna);
       refreshAllViews();
+
+      // 1. Hubungkan Firebase Firestore Realtime Listener (Sub-detik tanpa jeda)
+      if (isFirestoreActive && fbDb) {
+        initFirestoreRealtimeListeners();
+      }
 
       const urlInput = document.getElementById('inputGasWebAppUrl');
       if (urlInput) urlInput.value = getActiveGasUrl();
@@ -7577,6 +7722,13 @@ function savePejabatGAS(pejabatObj) {
       showToast('Akun @' + username + ' berhasil disimpan di perangkat!', 'success');
       notifyRealtimeChange('SAVE_PENGGUNA', userPayload);
 
+      // Sinkronisasi ke Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('pengguna').doc(userPayload.id).set(sanitizeForFirestore(userPayload)).catch(err => {
+          console.warn('Firestore savePengguna notice:', err);
+        });
+      }
+
       // Sinkronisasi ke Backend GAS (Google Spreadsheet Sheet Data_Pengguna)
       if (isGasEnvironment() || getActiveGasUrl()) {
         const res = await callCloudBackend('upsertPenggunaGAS', userPayload);
@@ -7602,6 +7754,13 @@ function savePejabatGAS(pejabatObj) {
       renderPenggunaResponsive();
       showToast('Akun @' + delUser + ' berhasil dihapus.');
       notifyRealtimeChange('DELETE_PENGGUNA', { id, username: delUser });
+
+      // Hapus di Firebase Firestore
+      if (fbDb) {
+        fbDb.collection('pengguna').doc(id).delete().catch(err => {
+          console.warn('Firestore deletePengguna notice:', err);
+        });
+      }
 
       // Hapus permanen di Google Spreadsheet baik berdasarkan ID maupun Username
       if (isGasEnvironment() || getActiveGasUrl()) {
@@ -7865,7 +8024,7 @@ function savePejabatGAS(pejabatObj) {
       setElText('dashCardSetoran', activeSetoran.length);
       setElText('dashCardAvgNilai', avg);
       setElText('dashCardTargetSelesai', activeTarget.filter(t => t.status === 'Selesai').length);
-      setElText('dashCardVideoCount', activeSetoran.filter(s => s.hasVideo).length);
+      setElText('dashCardVideoCount', activeSetoran.filter(s => Boolean(s.hasVideo === true || s.hasVideo === 'true' || s.driveUrl || s.videoBlobUrl)).length);
 
       populateAllDropdowns(activeSantri);
       updateOverviewChartAndStats();
@@ -7899,7 +8058,9 @@ function savePejabatGAS(pejabatObj) {
       const canManage = allowDelete && (appState.currentUser?.role === 'admin' || appState.currentUser?.role === 'ustadz');
 
       const mobileCards = `<div class="md:hidden space-y-3">
-        ${list.map(s => `
+        ${list.map(s => {
+          const hasVid = Boolean(s.hasVideo === true || s.hasVideo === 'true' || s.driveUrl || s.videoBlobUrl);
+          return `
           <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2 text-xs">
             <div class="flex justify-between items-start gap-2">
               <div>
@@ -7914,17 +8075,17 @@ function savePejabatGAS(pejabatObj) {
             </div>
             ${s.catatan ? `<p class="text-[11px] text-slate-600 italic">"${s.catatan}"</p>` : ''}
             <div class="flex items-center justify-between pt-2 border-t border-slate-200/70">
-              ${s.hasVideo ? `<button onclick="playVideo('${s.id}')" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-bold text-[11px] flex items-center space-x-1 hover:bg-rose-500 transition"><i class="fa-solid fa-circle-play"></i><span>Putar Video</span></button>` : `<span class="text-[11px] text-slate-400">Tanpa Video</span>`}
+              ${hasVid ? `<button onclick="playVideo('${s.id}')" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-bold text-[11px] flex items-center space-x-1 hover:bg-rose-500 transition"><i class="fa-solid fa-circle-play"></i><span>Putar Video</span></button>` : `<span class="text-[11px] text-slate-400">Tanpa Video</span>`}
               <div class="flex items-center space-x-1">
                 ${canManage ? `
                   <button onclick="editSetoran('${s.id}')" class="p-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition" title="Edit Setoran & Video"><i class="fa-solid fa-pen-to-square"></i></button>
-                  ${s.hasVideo ? `<button onclick="deleteSetoranVideo('${s.id}')" class="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition" title="Hapus Video Saja"><i class="fa-solid fa-video-slash"></i></button>` : ''}
+                  ${hasVid ? `<button onclick="deleteSetoranVideo('${s.id}')" class="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition" title="Hapus Video Saja"><i class="fa-solid fa-video-slash"></i></button>` : ''}
                   <button onclick="deleteSetoran('${s.id}')" class="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition" title="Hapus Data Setoran"><i class="fa-solid fa-trash"></i></button>
                 ` : ''}
               </div>
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>`;
 
       const desktopTable = `<div class="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
@@ -7942,7 +8103,9 @@ function savePejabatGAS(pejabatObj) {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            ${list.map(s => `
+            ${list.map(s => {
+              const hasVid = Boolean(s.hasVideo === true || s.hasVideo === 'true' || s.driveUrl || s.videoBlobUrl);
+              return `
               <tr class="hover:bg-slate-50/80 transition">
                 <td class="p-3 font-semibold text-slate-600">${s.tanggal}</td>
                 <td class="p-3 font-extrabold text-slate-900">${s.santriNama}</td>
@@ -7950,14 +8113,14 @@ function savePejabatGAS(pejabatObj) {
                 <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">Juz ${s.juz}</span></td>
                 <td class="p-3"><span class="px-2 py-0.5 rounded bg-sky-50 text-sky-700 font-black">${s.nilai}</span></td>
                 <td class="p-3 text-slate-600">${s.ustadz}</td>
-                <td class="p-3">${s.hasVideo ? `<button onclick="playVideo('${s.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 transition inline-flex items-center space-x-1"><i class="fa-solid fa-play"></i><span>Putar Video</span></button>` : '<span class="text-slate-400">-</span>'}</td>
+                <td class="p-3">${hasVid ? `<button onclick="playVideo('${s.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 transition inline-flex items-center space-x-1"><i class="fa-solid fa-play"></i><span>Putar Video</span></button>` : '<span class="text-slate-400">-</span>'}</td>
                 ${canManage ? `
                   <td class="p-3 text-right whitespace-nowrap">
                     <div class="inline-flex items-center space-x-1">
                       <button onclick="editSetoran('${s.id}')" class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold transition inline-flex items-center space-x-1" title="Edit Setoran & Video">
                         <i class="fa-solid fa-pen-to-square"></i><span>Edit</span>
                       </button>
-                      ${s.hasVideo ? `
+                      ${hasVid ? `
                         <button onclick="deleteSetoranVideo('${s.id}')" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold transition inline-flex items-center space-x-1" title="Hapus Video Saja">
                           <i class="fa-solid fa-video-slash"></i><span>Hapus Video</span>
                         </button>
@@ -7969,7 +8132,7 @@ function savePejabatGAS(pejabatObj) {
                   </td>
                 ` : ''}
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
       </div>`;
@@ -8697,6 +8860,13 @@ function savePejabatGAS(pejabatObj) {
       refreshAllViews();
       notifyRealtimeChange('SAVE_SANTRI', obj);
       showToast('Data santri berhasil disimpan!');
+
+      // Sinkronisasi ke Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('santri').doc(obj.id).set(sanitizeForFirestore(obj)).catch(err => {
+          console.warn('Firestore saveSantri notice:', err);
+        });
+      }
       if (isGasEnvironment() || getActiveGasUrl()) {
         callCloudBackend('upsertSantriGAS', obj).then(() => syncCloudDataRealtime(true));
       }
@@ -8713,6 +8883,13 @@ function savePejabatGAS(pejabatObj) {
       persistLocalState();
       refreshAllViews();
       notifyRealtimeChange('DELETE_SANTRI', { id, nis });
+
+      // Hapus di Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('santri').doc(id).delete().catch(err => {
+          console.warn('Firestore deleteSantri notice:', err);
+        });
+      }
 
       if (isGasEnvironment() || getActiveGasUrl()) {
         try {
@@ -8774,6 +8951,13 @@ function savePejabatGAS(pejabatObj) {
       refreshAllViews();
       notifyRealtimeChange('SAVE_USTADZ', obj);
       showToast('Data Ustadz/Ustadzah berhasil disimpan!');
+
+      // Sinkronisasi ke Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('ustadz').doc(obj.id).set(sanitizeForFirestore(obj)).catch(err => {
+          console.warn('Firestore saveUstadz notice:', err);
+        });
+      }
       if (isGasEnvironment() || getActiveGasUrl()) {
         callCloudBackend('upsertUstadzGAS', obj).then(() => syncCloudDataRealtime(true));
       }
@@ -8787,6 +8971,13 @@ function savePejabatGAS(pejabatObj) {
       persistLocalState();
       refreshAllViews();
       notifyRealtimeChange('DELETE_USTADZ', { id });
+
+      // Hapus di Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('ustadz').doc(id).delete().catch(err => {
+          console.warn('Firestore deleteUstadz notice:', err);
+        });
+      }
 
       if (isGasEnvironment() || getActiveGasUrl()) {
         try {
@@ -8827,6 +9018,13 @@ function savePejabatGAS(pejabatObj) {
       refreshAllViews();
       notifyRealtimeChange('SAVE_TARGET', obj);
       showToast('Target hafalan berhasil ditambahkan!');
+
+      // Sinkronisasi ke Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('target').doc(obj.id).set(sanitizeForFirestore(obj)).catch(err => {
+          console.warn('Firestore saveTarget notice:', err);
+        });
+      }
       if (isGasEnvironment() || getActiveGasUrl()) {
         callCloudBackend('upsertTargetGAS', obj).then(() => syncCloudDataRealtime(true));
       }
@@ -8840,6 +9038,14 @@ function savePejabatGAS(pejabatObj) {
       refreshAllViews();
       notifyRealtimeChange('TOGGLE_TARGET', t);
       showToast('Status target diperbarui menjadi: ' + t.status);
+
+      // Sinkronisasi ke Firebase Firestore
+      if (fbDb) {
+        fbDb.collection('target').doc(t.id).set(sanitizeForFirestore(t), { merge: true }).catch(err => {
+          console.warn('Firestore toggleTarget notice:', err);
+        });
+      }
+
       if (isGasEnvironment() || getActiveGasUrl()) {
         await callCloudBackend('upsertTargetGAS', t);
         await syncCloudDataRealtime(true);
@@ -8854,6 +9060,13 @@ function savePejabatGAS(pejabatObj) {
       persistLocalState();
       refreshAllViews();
       notifyRealtimeChange('DELETE_TARGET', { id });
+
+      // Hapus di Firebase Firestore
+      if (fbDb) {
+        fbDb.collection('target').doc(id).delete().catch(err => {
+          console.warn('Firestore deleteTarget notice:', err);
+        });
+      }
 
       if (isGasEnvironment() || getActiveGasUrl()) {
         try {
@@ -8882,6 +9095,15 @@ function savePejabatGAS(pejabatObj) {
       persistLocalState();
       refreshAllViews();
       notifyRealtimeChange('CLEAR_ALL_TARGET', {});
+
+      // Bersihkan di Firebase Firestore
+      if (fbDb) {
+        fbDb.collection('target').get().then(snap => {
+          const batch = fbDb.batch();
+          snap.forEach(doc => batch.delete(doc.ref));
+          return batch.commit();
+        }).catch(err => console.warn('Firestore clearTarget notice:', err));
+      }
 
       if (isGasEnvironment() || getActiveGasUrl()) {
         try {
@@ -8946,6 +9168,12 @@ function savePejabatGAS(pejabatObj) {
         ijazahKepalaNip: document.getElementById('formIjazahKepalaNip').value.trim()
       };
       persistLocalState();
+      // Sinkronisasi ke Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('pengaturan').doc('pejabat').set(sanitizeForFirestore(appState.pejabat), { merge: true }).catch(err => {
+          console.warn('Firestore savePejabat notice:', err);
+        });
+      }
       callCloudBackend('savePejabatGAS', appState.pejabat);
       closePejabatModal();
       refreshAllViews();
@@ -9448,6 +9676,13 @@ function savePejabatGAS(pejabatObj) {
       refreshAllViews();
       notifyRealtimeChange('SAVE_SETORAN', { id: newId });
 
+      // Simpan seketika ke Firebase Firestore (Realtime Instan <0.2 detik ke semua perangkat)
+      if (fbDb) {
+        fbDb.collection('setoran').doc(newId).set(sanitizeForFirestore(setoranItem)).catch(err => {
+          console.warn('Firestore saveSetoran notice:', err);
+        });
+      }
+
       if (isGasEnvironment() || getActiveGasUrl()) {
         showToast(hasNewVideo ? 'Mengunggah video ke SIMTAQ Google Drive & mencatat ke Spreadsheet...' : 'Menyimpan data setoran ke Google Spreadsheet...', 'info');
 
@@ -9475,6 +9710,18 @@ function savePejabatGAS(pejabatObj) {
               targetItem.driveUrl = res.videoUrl;
               targetItem.videoBlobUrl = res.videoUrl;
             }
+
+            // Perbarui URL video permanen di Firebase Firestore (Terpantul langsung ke tombol Putar Video)
+            if (fbDb) {
+              fbDb.collection('setoran').doc(setoranItem.id).set({
+                hasVideo: true,
+                driveUrl: res.videoUrl,
+                videoBlobUrl: res.videoUrl
+              }, { merge: true }).catch(err => {
+                console.warn('Firestore setoran videoUrl update notice:', err);
+              });
+            }
+
             persistLocalState();
             refreshAllViews();
           }
@@ -9548,6 +9795,17 @@ function savePejabatGAS(pejabatObj) {
       persistLocalState();
       refreshAllViews();
 
+      // Perbarui di Firebase Firestore
+      if (fbDb) {
+        fbDb.collection('setoran').doc(id).set({
+          hasVideo: false,
+          videoBlobUrl: '',
+          driveUrl: ''
+        }, { merge: true }).catch(err => {
+          console.warn('Firestore deleteSetoranVideo notice:', err);
+        });
+      }
+
       showToast('Menghapus video setoran dari Database Spreadsheet...', 'info');
       await callCloudBackend('deleteSetoranVideoGAS', { setoranId: id });
       showToast('Video setoran berhasil dihapus!', 'success');
@@ -9561,6 +9819,13 @@ function savePejabatGAS(pejabatObj) {
       persistLocalState();
       refreshAllViews();
       notifyRealtimeChange('DELETE_SETORAN', { id });
+
+      // Hapus dokumen di Firebase Firestore (Realtime Instan)
+      if (fbDb) {
+        fbDb.collection('setoran').doc(id).delete().catch(err => {
+          console.warn('Firestore deleteSetoran notice:', err);
+        });
+      }
 
       if (isGasEnvironment() || getActiveGasUrl()) {
         try {
@@ -9590,6 +9855,15 @@ function savePejabatGAS(pejabatObj) {
       persistLocalState();
       refreshAllViews();
       notifyRealtimeChange('CLEAR_ALL_SETORAN', {});
+
+      // Kosongkan seluruh koleksi setoran di Firebase Firestore
+      if (fbDb) {
+        fbDb.collection('setoran').get().then(snap => {
+          const batch = fbDb.batch();
+          snap.forEach(doc => batch.delete(doc.ref));
+          return batch.commit();
+        }).catch(err => console.warn('Firestore clearAllSetoran notice:', err));
+      }
 
       if (isGasEnvironment() || getActiveGasUrl()) {
         try {
