@@ -6422,7 +6422,12 @@ function savePejabatGAS(pejabatObj) {
 
           // 3. Data Setoran (JIKA DI CLOUD KOSONG, appState.setoran WAJIB KOSONG JUGA!)
           if (Array.isArray(res.setoran)) {
-            const cleanSetoran = res.setoran.filter(s => s.nis !== '4334345' && s.nis !== '4334346');
+            const cleanSetoran = res.setoran
+              .filter(s => s.nis !== '4334345' && s.nis !== '4334346')
+              .map(s => {
+                if (s.videoBase64) delete s.videoBase64;
+                return s;
+              });
             if (JSON.stringify(appState.setoran) !== JSON.stringify(cleanSetoran)) {
               appState.setoran = cleanSetoran;
               hasChanged = true;
@@ -6531,7 +6536,12 @@ function savePejabatGAS(pejabatObj) {
             if (cleanUstadz.length) appState.ustadz = cleanUstadz;
           }
           if (Array.isArray(parsed.setoran)) {
-            const cleanSetoran = parsed.setoran.filter(s => s.nis !== '4334345' && s.nis !== '4334346');
+            const cleanSetoran = parsed.setoran
+              .filter(s => s.nis !== '4334345' && s.nis !== '4334346')
+              .map(s => {
+                if (s.videoBase64) delete s.videoBase64;
+                return s;
+              });
             appState.setoran = cleanSetoran;
           }
           if (Array.isArray(parsed.target)) {
@@ -6571,7 +6581,12 @@ function savePejabatGAS(pejabatObj) {
             if (clean.length) appState.ustadz = clean;
           }
           if (Array.isArray(res.setoran)) {
-            const clean = res.setoran.filter(s => s.nis !== '4334345' && s.nis !== '4334346');
+            const clean = res.setoran
+              .filter(s => s.nis !== '4334345' && s.nis !== '4334346')
+              .map(s => {
+                if (s.videoBase64) delete s.videoBase64;
+                return s;
+              });
             appState.setoran = clean;
           }
           if (Array.isArray(res.target)) {
@@ -8855,7 +8870,11 @@ function savePejabatGAS(pejabatObj) {
       document.getElementById('setoranModal').classList.add('hidden');
       stopCamera();
       const rec = document.getElementById('recordedVideoPlayback');
-      if (rec) rec.pause();
+      if (rec) {
+        rec.pause();
+        rec.src = '';
+      }
+      resetRecordedVideo();
     }
 
     // Pemicu Kamera Bawaan HP (Native Mobile Camera) - Berfungsi 100% di HP Android & iOS
@@ -8966,7 +8985,12 @@ function savePejabatGAS(pejabatObj) {
       if (btnSubmit) {
         btnSubmit.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Simpan Setoran &amp; Video ke Database';
       }
-      setElText('recordingStatus', 'Video Siap Disimpan');
+      if (blobOrFile && blobOrFile.size) {
+        const sizeMb = (blobOrFile.size / (1024 * 1024)).toFixed(1);
+        setElText('recordingStatus', `Video Siap Disimpan (${sizeMb} MB)`);
+      } else {
+        setElText('recordingStatus', 'Video Siap Disimpan');
+      }
       showToast('Video rekaman berhasil dimuat! Klik tombol Pratinjau Video untuk memutar.', 'success');
     }
 
@@ -8979,15 +9003,21 @@ function savePejabatGAS(pejabatObj) {
           return;
         }
 
+        const videoConstraints = {
+          facingMode: currentFacingMode,
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
+          frameRate: { ideal: 24, max: 30 }
+        };
         try {
           activeCameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: currentFacingMode },
+            video: videoConstraints,
             audio: true
           });
         } catch (e1) {
           // Fallback tanpa audio jika izin mikrofon tidak tersedia
           activeCameraStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
+            video: videoConstraints,
             audio: false
           });
         }
@@ -9034,28 +9064,44 @@ function savePejabatGAS(pejabatObj) {
       if (!activeCameraStream) return;
       recordedChunks = [];
       const chosenMime = getSupportedMimeType();
+      const recOptions = {
+        videoBitsPerSecond: 800000, // 800 kbps (jernih dan ringan ~6MB/menit, anti out of memory)
+        audioBitsPerSecond: 64000
+      };
+      if (chosenMime) recOptions.mimeType = chosenMime;
+
       try {
-        mediaRecorder = chosenMime ? new MediaRecorder(activeCameraStream, { mimeType: chosenMime }) : new MediaRecorder(activeCameraStream);
+        mediaRecorder = new MediaRecorder(activeCameraStream, recOptions);
       } catch (e) {
-        mediaRecorder = new MediaRecorder(activeCameraStream);
+        try {
+          mediaRecorder = chosenMime ? new MediaRecorder(activeCameraStream, { mimeType: chosenMime }) : new MediaRecorder(activeCameraStream);
+        } catch (e2) {
+          mediaRecorder = new MediaRecorder(activeCameraStream);
+        }
       }
 
       mediaRecorder.ondataavailable = e => { if (e.data?.size > 0) recordedChunks.push(e.data); };
       mediaRecorder.onstop = () => {
         const mime = chosenMime || 'video/webm';
         const blob = new Blob(recordedChunks, { type: mime });
+        currentVideoMimeType = mime;
         currentRecordedBlob = blob;
         const objectUrl = URL.createObjectURL(blob);
         showRecordedPreview(objectUrl, blob, mime);
 
-        // Siapkan Base64 di background khusus untuk upload ke Google Apps Script (Drive)
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          currentRecordedBase64 = reader.result;
-        };
-        reader.readAsDataURL(blob);
+        const MAX_CLOUD_SIZE = 25 * 1024 * 1024; // 25 MB batas aman upload Google Apps Script
+        if (blob.size <= MAX_CLOUD_SIZE) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            currentRecordedBase64 = reader.result;
+          };
+          reader.readAsDataURL(blob);
+        } else {
+          currentRecordedBase64 = null;
+          showToast(`Ukuran rekaman ${(blob.size / (1024 * 1024)).toFixed(1)}MB melebihi batas 25MB untuk upload Google Drive. Video tetap tersimpan di penyimpanan lokal.`, 'info');
+        }
       };
-      mediaRecorder.start();
+      mediaRecorder.start(1000); // Kumpulkan chunk per 1 detik agar buffer memori stabil
       document.getElementById('btnStartRec')?.setAttribute('disabled', 'true');
       document.getElementById('btnStopRec')?.removeAttribute('disabled');
       setElText('recordingStatus', 'Merekam Video...');
@@ -9072,17 +9118,24 @@ function savePejabatGAS(pejabatObj) {
     function handleVideoFileUpload(e) {
       const file = e.target.files?.[0];
       if (!file) return;
+
+      const MAX_CLOUD_SIZE = 25 * 1024 * 1024; // 25 MB batas aman
       const mime = file.type || 'video/mp4';
+      currentVideoMimeType = mime;
       currentRecordedBlob = file;
       const objectUrl = URL.createObjectURL(file);
       showRecordedPreview(objectUrl, file, mime);
 
-      // Siapkan Base64 di background khusus untuk upload ke Google Apps Script (Drive)
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        currentRecordedBase64 = reader.result;
-      };
-      reader.readAsDataURL(file);
+      if (file.size <= MAX_CLOUD_SIZE) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          currentRecordedBase64 = reader.result;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        currentRecordedBase64 = null;
+        showToast(`Perhatian: Ukuran file ${(file.size / (1024 * 1024)).toFixed(1)}MB melebihi 25MB. Video tetap tersimpan di perangkat lokal, namun tidak diunggah ke Google Drive untuk mencegah kehabisan memori.`, 'warning');
+      }
     }
 
     async function handleSaveSetoran(e) {
@@ -9131,7 +9184,8 @@ function savePejabatGAS(pejabatObj) {
       const mIrama = Number(document.getElementById('setoranIrama')?.value) || nTotal;
       const mAdab = Number(document.getElementById('setoranAdab')?.value) || nTotal;
 
-      const payload = {
+      // 1. Data setoran murni (ringan & cepat, TIDAK menyimpan string base64 video agar RAM tidak out of memory)
+      const setoranItem = {
         id: newId,
         tanggal: existing ? existing.tanggal : tgl,
         santriId: s.id,
@@ -9145,8 +9199,7 @@ function savePejabatGAS(pejabatObj) {
         catatan: document.getElementById('setoranCatatan').value.trim(),
         hasVideo: isVideoPresent,
         videoBlobUrl: (videoBlobUrl && !videoBlobUrl.startsWith('data:')) ? videoBlobUrl : '',
-        videoBase64: hasNewVideo ? (currentRecordedBase64 || '') : '',
-        videoMimeType: currentVideoMimeType || 'video/webm',
+        driveUrl: existing?.driveUrl || '',
         mutqin: mMutqin,
         tajwid: mTajwid,
         makhraj: mMakhraj,
@@ -9157,23 +9210,36 @@ function savePejabatGAS(pejabatObj) {
 
       if (editId) {
         const idx = appState.setoran.findIndex(x => x.id === editId);
-        if (idx !== -1) appState.setoran[idx] = { ...appState.setoran[idx], ...payload };
+        if (idx !== -1) appState.setoran[idx] = { ...appState.setoran[idx], ...setoranItem };
       } else {
-        appState.setoran.unshift(payload);
+        appState.setoran.unshift(setoranItem);
       }
       persistLocalState();
       closeSetoranModal();
       refreshAllViews();
-      notifyRealtimeChange('SAVE_SETORAN', payload);
+      notifyRealtimeChange('SAVE_SETORAN', { id: newId });
 
       if (isGasEnvironment() || getActiveGasUrl()) {
         showToast(hasNewVideo ? 'Mengunggah video ke folder SIMTAQ Drive & mencatat ke Spreadsheet...' : 'Menyimpan data setoran ke Google Spreadsheet...', 'info');
-        const res = await callCloudBackend('saveSetoranWithVideo', payload);
+
+        // Objek payload khusus upload cloud dengan base64 terpisah
+        const cloudPayload = {
+          ...setoranItem,
+          videoBase64: hasNewVideo ? (currentRecordedBase64 || '') : '',
+          videoMimeType: currentVideoMimeType || 'video/webm'
+        };
+
+        const res = await callCloudBackend('saveSetoranWithVideo', cloudPayload);
+
+        // Langsung kosongkan base64 untuk membebaskan RAM seketika
+        cloudPayload.videoBase64 = '';
+        currentRecordedBase64 = null;
+
         if (res && (res.status === 'success' || res.videoUrl)) {
           if (res.videoUrl) {
-            payload.driveUrl = res.videoUrl;
-            payload.videoBlobUrl = res.videoUrl;
-            const targetItem = appState.setoran.find(x => x.id === payload.id);
+            setoranItem.driveUrl = res.videoUrl;
+            setoranItem.videoBlobUrl = res.videoUrl;
+            const targetItem = appState.setoran.find(x => x.id === setoranItem.id);
             if (targetItem) {
               targetItem.driveUrl = res.videoUrl;
               targetItem.videoBlobUrl = res.videoUrl;
