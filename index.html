@@ -4855,8 +4855,19 @@
       <!-- Kontainer Pemutar: Mendukung Video Langsung & Google Drive Preview -->
       <div
         class="w-full aspect-video bg-black rounded-2xl overflow-hidden flex items-center justify-center relative shadow-inner">
-        <!-- Native HTML5 Video Element (untuk Local HD Playback & Audio Jernih) -->
-        <video id="modalVideoElement" controls playsinline class="w-full h-full object-contain bg-black"></video>
+        <!-- Native HTML5 Video Element (untuk Local HD Playback & Audio Jernih di Laptop & HP) -->
+        <video id="modalVideoElement" controls playsinline webkit-playsinline x5-playsinline preload="metadata" class="w-full h-full object-contain bg-black hidden"></video>
+
+        <!-- Loading Overlay saat video sedang diunduh/diproses dari Cloud Firebase -->
+        <div id="modalVideoLoading"
+          class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center text-center p-4 space-y-3 hidden">
+          <div class="w-12 h-12 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+          <p class="text-xs font-bold text-slate-100" id="modalVideoLoadingText">Menyiapkan rekaman video...</p>
+          <div class="w-48 bg-slate-800 rounded-full h-2 overflow-hidden hidden" id="modalVideoProgressBarWrap">
+            <div id="modalVideoProgressBar" class="bg-emerald-500 h-full transition-all duration-200" style="width: 0%"></div>
+          </div>
+          <p class="text-[10px] text-slate-400" id="modalVideoLoadingSub">Sinkronisasi Cloud Firebase Realtime</p>
+        </div>
 
         <!-- Google Drive Iframe Preview (bila didukung browser/web origin) -->
         <iframe id="modalDriveIframe" class="w-full h-full border-0 hidden"
@@ -8982,27 +8993,47 @@ function initFirestoreRealtimeListeners() {
     }
 
     // ================= SINKRONISASI VIDEO STREAMING CLOUD FIREBASE =================
-    async function uploadVideoChunksToFirestore(setoranId, base64Data, mime = 'video/webm') {
+    async function uploadVideoChunksToFirestore(setoranId, base64Data, mime = 'video/mp4') {
       if (!fbDb || !setoranId || !base64Data) return;
       try {
+        let pureBase64 = base64Data;
+        let detectedMime = mime;
+        if (pureBase64.indexOf('base64,') !== -1) {
+          const parts = pureBase64.split('base64,');
+          pureBase64 = parts[1];
+          const mimeMatch = parts[0].match(/:(.*?);/);
+          if (mimeMatch) detectedMime = mimeMatch[1];
+        }
+
         const CHUNK_SIZE = 500000; // ~500KB per chunk aman di bawah batas 1MB Firestore
-        const totalChunks = Math.ceil(base64Data.length / CHUNK_SIZE);
+        const totalChunks = Math.ceil(pureBase64.length / CHUNK_SIZE);
 
         for (let i = 0; i < totalChunks; i++) {
-          const slice = base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          const slice = pureBase64.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
           await fbDb.collection('setoran').doc(setoranId).collection('videoChunks').doc(String(i).padStart(3, '0')).set({
             index: i,
             total: totalChunks,
             data: slice,
-            mime: mime,
+            mime: detectedMime,
             timestamp: Date.now()
           });
         }
 
+        // Hapus chunk lama jika sebelumnya ada chunk berlebih dari video sebelumnya
+        try {
+          const oldSnap = await fbDb.collection('setoran').doc(setoranId).collection('videoChunks').get();
+          oldSnap.forEach(d => {
+            if (Number(d.data().index) >= totalChunks) {
+              d.ref.delete().catch(() => { });
+            }
+          });
+        } catch (e) { }
+
         await fbDb.collection('setoran').doc(setoranId).set({
           hasVideo: true,
           hasVideoChunks: true,
-          totalChunks: totalChunks
+          totalChunks: totalChunks,
+          videoMimeType: detectedMime
         }, { merge: true });
 
         console.log(`Video chunks Firestore berhasil disimpan (${totalChunks} bagian) untuk ID: ${setoranId}`);
@@ -9011,41 +9042,63 @@ function initFirestoreRealtimeListeners() {
       }
     }
 
-    async function fetchVideoBlobFromFirestore(setoranId) {
+    async function fetchVideoBlobFromFirestore(setoranId, onProgress) {
       if (!fbDb || !setoranId) return null;
       try {
-        const snap = await fbDb.collection('setoran').doc(setoranId).collection('videoChunks').orderBy('index').get();
+        const setoranDoc = await fbDb.collection('setoran').doc(setoranId).get();
+        const setoranData = setoranDoc.exists ? setoranDoc.data() : null;
+        const expectedTotalFromParent = setoranData ? Number(setoranData.totalChunks) : 0;
+
+        const snap = await fbDb.collection('setoran').doc(setoranId).collection('videoChunks').get();
         if (snap.empty) return null;
 
+        const docs = snap.docs;
+        // Urutkan numerik berdasarkan index chunk (0, 1, 2, ... N)
+        docs.sort((a, b) => (Number(a.data().index) || 0) - (Number(b.data().index) || 0));
+
+        const expectedTotal = expectedTotalFromParent || Number(docs[0].data().total) || docs.length;
+        const validDocs = docs.filter(d => (Number(d.data().index) || 0) < expectedTotal);
+        if (validDocs.length === 0) return null;
+
         let fullBase64 = '';
-        let mime = 'video/webm';
-        snap.forEach(doc => {
-          const d = doc.data();
-          if (d.data) fullBase64 += d.data;
+        let mime = setoranData?.videoMimeType || 'video/mp4';
+
+        for (let i = 0; i < validDocs.length; i++) {
+          const d = validDocs[i].data();
+          if (d.data) {
+            let chunkData = d.data;
+            if (chunkData.indexOf('base64,') !== -1) {
+              chunkData = chunkData.split('base64,')[1];
+            }
+            fullBase64 += chunkData;
+          }
           if (d.mime) mime = d.mime;
-        });
+          if (typeof onProgress === 'function') {
+            const pct = Math.round(((i + 1) / validDocs.length) * 100);
+            onProgress(pct, i + 1, validDocs.length);
+          }
+        }
 
         if (!fullBase64 || fullBase64.length < 50) return null;
 
-        let byteString;
+        const byteString = atob(fullBase64);
+        const len = byteString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = byteString.charCodeAt(i);
+        }
+
+        // Deteksi magic bytes kontainer video untuk menjamin 100% kompatibel di HP Android & iPhone iOS
         let mimeType = mime;
-        if (fullBase64.indexOf('base64,') !== -1) {
-          const parts = fullBase64.split('base64,');
-          byteString = atob(parts[1]);
-          const mimeMatch = parts[0].match(/:(.*?);/);
-          if (mimeMatch) mimeType = mimeMatch[1];
-        } else {
-          byteString = atob(fullBase64);
+        if (len >= 8 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+          mimeType = 'video/mp4'; // ISO Base Media / MP4 (H.264 / AAC)
+        } else if (len >= 4 && bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3) {
+          mimeType = 'video/webm'; // EBML / WebM
         }
 
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-          ia[i] = byteString.charCodeAt(i);
-        }
-        const blob = new Blob([ab], { type: mimeType });
+        const blob = new Blob([bytes], { type: mimeType });
 
-        // Simpan ke IndexedDB lokal agar pemutaran selanjutnya instan 0 detik
+        // Simpan ke IndexedDB lokal agar pemutaran selanjutnya instan 0 detik di HP/Laptop ini
         await saveVideoBlobLocal(setoranId, blob);
         return blob;
       } catch (err) {
@@ -9717,6 +9770,10 @@ function initFirestoreRealtimeListeners() {
       const v = document.getElementById('modalVideoElement');
       const iframe = document.getElementById('modalDriveIframe');
       const standby = document.getElementById('modalDriveStandby');
+      const loading = document.getElementById('modalVideoLoading');
+      const loadingText = document.getElementById('modalVideoLoadingText');
+      const progressWrap = document.getElementById('modalVideoProgressBarWrap');
+      const progressBar = document.getElementById('modalVideoProgressBar');
       const badgeText = document.getElementById('videoSourceStatusText');
       const subText = document.getElementById('videoSourceSubText');
       const btnDrive = document.getElementById('videoDriveExternalLink');
@@ -9735,7 +9792,11 @@ function initFirestoreRealtimeListeners() {
         try { URL.revokeObjectURL(currentModalObjectUrl); } catch (e) { }
         currentModalObjectUrl = null;
       }
-      if (v) { v.pause(); v.src = ''; }
+      if (v) {
+        v.pause();
+        v.src = '';
+        v.classList.add('hidden');
+      }
       if (iframe) { iframe.src = ''; iframe.classList.add('hidden'); }
       if (standby) { standby.classList.add('hidden'); }
 
@@ -9767,21 +9828,44 @@ function initFirestoreRealtimeListeners() {
 
       // 2. Jika tidak ada di lokal (misal Admin atau Orang Tua membuka dari HP/Laptop lain), unduh langsung dari Cloud Firebase!
       if (!localBlob && fbDb) {
+        if (loading) loading.classList.remove('hidden');
+        if (progressWrap) progressWrap.classList.remove('hidden');
+        if (progressBar) progressBar.style.width = '5%';
+        if (loadingText) loadingText.textContent = 'Menghubungkan ke Cloud Firebase...';
         if (badgeText) {
           badgeText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-500 mr-1.5"></i><span>Mengunduh Video dari Cloud...</span>';
         }
         if (subText) subText.textContent = 'Streaming Firebase HD';
-        localBlob = await fetchVideoBlobFromFirestore(setoranId);
+
+        localBlob = await fetchVideoBlobFromFirestore(setoranId, (pct, cur, tot) => {
+          if (progressBar) progressBar.style.width = `${pct}%`;
+          if (loadingText) loadingText.textContent = `Mengunduh video hafalan (${pct}%)...`;
+          if (badgeText) {
+            badgeText.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-500 mr-1.5"></i><span>Mengunduh Video (${pct}%)...</span>`;
+          }
+        });
       }
+
+      if (loading) loading.classList.add('hidden');
+      if (progressWrap) progressWrap.classList.add('hidden');
 
       if (localBlob) {
         // Video tersedia (dari IndexedDB lokal maupun unduh Cloud Firestore): Putar langsung di <video> HD!
         currentModalObjectUrl = URL.createObjectURL(localBlob);
         if (v) {
           v.src = currentModalObjectUrl;
-          v.classList.remove('hidden');
+          v.setAttribute('playsinline', '');
+          v.setAttribute('webkit-playsinline', '');
+          v.setAttribute('x5-playsinline', '');
           v.muted = false; // Audio aktif bersuara
-          v.play().catch(() => { });
+          v.load();
+          v.classList.remove('hidden');
+          const playPromise = v.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(e => {
+              console.log('Autoplay dicegah browser HP, silakan tekan tombol Putar:', e);
+            });
+          }
         }
         if (badgeText) {
           badgeText.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 mr-1.5"></i><span>Pemutaran Instan Cloud (HD)</span>';
@@ -9829,6 +9913,7 @@ function initFirestoreRealtimeListeners() {
           v.src = url;
           v.classList.remove('hidden');
           v.muted = false;
+          v.load();
           v.play().catch(() => { });
         }
         if (iframe) iframe.classList.add('hidden');
@@ -9844,12 +9929,15 @@ function initFirestoreRealtimeListeners() {
       const v = document.getElementById('modalVideoElement');
       const iframe = document.getElementById('modalDriveIframe');
       const standby = document.getElementById('modalDriveStandby');
+      const loading = document.getElementById('modalVideoLoading');
       if (v) {
         v.pause();
         v.src = '';
+        v.classList.add('hidden');
       }
       if (iframe) iframe.src = '';
       if (standby) standby.classList.add('hidden');
+      if (loading) loading.classList.add('hidden');
       if (currentModalObjectUrl) {
         try { URL.revokeObjectURL(currentModalObjectUrl); } catch (e) { }
         currentModalObjectUrl = null;
