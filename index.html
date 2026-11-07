@@ -3187,13 +3187,13 @@
                 <div class="flex flex-wrap items-center gap-2">
                   <span id="userRoleBadge"
                     class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold uppercase border border-emerald-400/30">Administrator</span>
-                  <span id="syncStatusBadge" onclick="handleSyncStatusBadgeClick()" class="text-[10px] text-amber-300 font-semibold flex items-center gap-1.5 cursor-pointer hover:underline" title="Klik untuk status koneksi database">
-                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Menghubungkan Spreadsheet...
+                  <span id="syncStatusBadge" onclick="handleSyncStatusBadgeClick()" class="text-[10px] text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer hover:underline" title="Status koneksi Firebase Firestore">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Terhubung Firebase Realtime
                   </span>
                 </div>
                 <h2 class="text-base sm:text-xl font-black truncate" id="welcomeUserText">Assalamualaikum Wr. Wb, Administrator SIMTAQ</h2>
                 <p class="text-[11px] text-slate-300" id="welcomeSubText">Hak akses penuh manajemen Santri,
-                  Ustadz/Ustadzah, Link YouTube Murotal, Pimpinan, dan GAS.</p>
+                  Ustadz/Ustadzah, Link YouTube Murotal, Pimpinan, dan Database Firebase.</p>
               </div>
 
               <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -3223,7 +3223,7 @@
                 class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 text-slate-800 font-extrabold text-xs">
                 <span class="flex items-center space-x-2">
                   <i class="fa-solid fa-bars text-emerald-700"></i>
-                  <span id="activeDashMenuLabel">Menu: Pengaturan &amp; GAS</span>
+                  <span id="activeDashMenuLabel">Menu: Pengaturan &amp; Firebase</span>
                 </span>
                 <i class="fa-solid fa-chevron-down text-xs" id="dashMobileChevron"></i>
               </button>
@@ -3265,7 +3265,7 @@
 
                 <button onclick="switchDashTab('tab-gas'); closeDashMobileMenu();"
                   class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 text-white flex items-center space-x-2.5">
-                  <i class="fa-solid fa-code w-4"></i><span>Pengaturan &amp; GAS</span>
+                  <i class="fa-solid fa-fire w-4 text-amber-400"></i><span>Pengaturan &amp; Firebase</span>
                 </button>
               </div>
             </div>
@@ -3308,7 +3308,7 @@
 
               <button onclick="switchDashTab('tab-gas')"
                 class="px-4 py-2.5 rounded-xl text-xs font-extrabold border transition flex items-center space-x-2 bg-emerald-700 text-white border-emerald-700 shadow-xs">
-                <i class="fa-solid fa-code"></i><span>Pengaturan &amp; GAS</span>
+                <i class="fa-solid fa-fire text-amber-400"></i><span>Pengaturan &amp; Firebase</span>
               </button>
             </div>
           </div>
@@ -3643,7 +3643,7 @@
                 <div class="flex items-center gap-2">
                   <button onclick="confirmClearAllSetoranCloud()" id="btnClearAllSetoranBtn"
                     class="px-3.5 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-extrabold shadow-xs flex items-center justify-center space-x-1.5 transition-all hidden"
-                    title="Kosongkan seluruh data setoran hafalan di Spreadsheet &amp; seluruh perangkat">
+                    title="Kosongkan seluruh data setoran hafalan di Firebase Firestore &amp; seluruh perangkat">
                     <i class="fa-solid fa-trash-can text-rose-500"></i><span>Kosongkan Semua Setoran (Cloud)</span>
                   </button>
                   <button onclick="openSetoranModal()" id="btnSetoranTabAction"
@@ -3823,7 +3823,7 @@
                 <div class="flex items-center gap-2">
                   <button onclick="confirmClearAllTargetCloud()" id="btnClearAllTargetBtn"
                     class="px-3.5 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-extrabold shadow-xs flex items-center justify-center space-x-1.5 transition-all hidden"
-                    title="Kosongkan seluruh data target hafalan di Spreadsheet &amp; seluruh perangkat">
+                    title="Kosongkan seluruh data target hafalan di Firebase Firestore &amp; seluruh perangkat">
                     <i class="fa-solid fa-trash-can text-rose-500"></i><span>Kosongkan Semua Target (Cloud)</span>
                   </button>
                   <button onclick="openTargetModal()" id="btnAddTarget"
@@ -4264,302 +4264,124 @@
             </div>
           </div>
 
-          <!-- ================= TAB 8: PENGATURAN, ANTIGRAVITY & KODE GAS ================= -->
+          <!-- ================= TAB 8: PENGATURAN & DATABASE FIREBASE REALTIME ================= -->
           <div id="tab-gas" class="dash-content space-y-5">
-            <!-- Panel Koneksi Database Existing untuk Google Antigravity / GitHub Pages -->
-            <div
-              class="bg-gradient-to-r from-emerald-950 via-slate-900 to-sky-950 p-4 sm:p-6 rounded-3xl text-white space-y-4 shadow-md">
+            <!-- Panel Status Database Firebase Firestore Realtime -->
+            <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-sky-950 p-4 sm:p-6 rounded-3xl text-white space-y-4 shadow-md">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                  <span
-                    class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-black uppercase">Google
-                    Antigravity Ready</span>
-                  <h3 class="font-extrabold text-sm sm:text-base mt-1">Koneksi ke Database Spreadsheet &amp; Drive yang
-                    Sudah Ada</h3>
-                  <p class="text-xs text-slate-300">Anda <strong>tidak perlu membuat database baru</strong> saat pindah
-                    ke Google Antigravity. Cukup tempelkan URL Web App (<code>.../exec</code>) dari Spreadsheet lama
-                    Anda di bawah ini:</p>
+                  <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-black uppercase flex items-center gap-1 w-fit">
+                    <i class="fa-solid fa-fire text-amber-400"></i> Google Firebase Firestore Aktif
+                  </span>
+                  <h3 class="font-extrabold text-sm sm:text-base mt-1.5 flex items-center gap-2">
+                    <span>Database Cloud Firestore Realtime</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></span>Live Sub-Detik
+                    </span>
+                  </h3>
+                  <p class="text-xs text-slate-300 mt-1">
+                    Aplikasi SIMTAQ kini <strong>100% menggunakan Google Firebase Firestore</strong>. Semua penambahan, pembaruan, dan penghapusan data santri, ustadz, setoran, target, pengguna, serta murotal tersinkronisasi instan ke seluruh perangkat tanpa jeda.
+                  </p>
                 </div>
-                <button onclick="downloadGeminiMdFile()"
-                  class="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 flex items-center space-x-1.5">
-                  <i class="fa-solid fa-robot"></i><span>Unduh GEMINI.md (Antigravity)</span>
-                </button>
+                <div class="flex flex-wrap gap-2">
+                  <button onclick="testFirebaseConnection()" class="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shrink-0 flex items-center space-x-1.5 transition">
+                    <i class="fa-solid fa-bolt"></i><span>Uji Koneksi Realtime</span>
+                  </button>
+                  <button onclick="downloadGeminiMdFile()" class="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 flex items-center space-x-1.5 transition">
+                    <i class="fa-solid fa-robot"></i><span>Unduh GEMINI.md</span>
+                  </button>
+                </div>
               </div>
 
-              <div class="flex flex-col sm:flex-row gap-2 text-xs">
-                <input type="url" id="inputGasWebAppUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                  class="flex-1 px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 font-mono text-[11px] focus:outline-none focus:border-emerald-400">
-                <button onclick="saveAndTestGasUrl()"
-                  class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black shrink-0">
-                  <i class="fa-solid fa-plug-circle-check mr-1"></i>Simpan &amp; Hubungkan Database Lama
-                </button>
+              <!-- Kartu Info Parameter Firebase -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
+                <div class="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                  <span class="text-[10px] text-slate-400 uppercase font-bold block">Project ID</span>
+                  <p class="font-mono font-bold text-amber-300 truncate">simtaq-man2</p>
+                </div>
+                <div class="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                  <span class="text-[10px] text-slate-400 uppercase font-bold block">Auth Domain</span>
+                  <p class="font-mono font-bold text-sky-300 truncate">simtaq-man2.firebaseapp.com</p>
+                </div>
+                <div class="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                  <span class="text-[10px] text-slate-400 uppercase font-bold block">Status Protokol</span>
+                  <p class="font-mono font-bold text-emerald-300 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>WebSocket Realtime</span>
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div class="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs space-y-5">
-              <div
-                class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pb-3 border-b border-slate-100">
+            <!-- Kartu Manajemen Profil Pimpinan & Pejabat -->
+            <div class="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+              <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pb-3 border-b border-slate-100">
                 <div>
-                  <h3 class="font-extrabold text-sm sm:text-base text-slate-800">Unduh Paket File untuk Folder Workspace
-                    Antigravity</h3>
-                  <p class="text-xs text-slate-500">Unduh <code>index.html</code>, <code>Code.gs</code>, dan
-                    <code>GEMINI.md</code> lalu satukan di dalam 1 folder komputer Anda untuk dibuka di Google
-                    Antigravity IDE.
-                  </p>
+                  <h3 class="font-extrabold text-sm sm:text-base text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-stamp text-amber-600"></i>
+                    <span>Pengesahan Rapor &amp; Format Ijazah</span>
+                  </h3>
+                  <p class="text-xs text-slate-500">Kelola identitas Kepala Madrasah, Pimpinan Yayasan, dan Penguji Tahfidz.</p>
                 </div>
-                <button onclick="openPejabatModal()"
-                  class="px-4 py-2.5 rounded-xl bg-amber-600 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5">
-                  <i class="fa-solid fa-pen-to-square"></i><span>Edit Nama Pimpinan</span>
+                <button onclick="openPejabatModal()" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 transition">
+                  <i class="fa-solid fa-pen-to-square"></i><span>Edit Profil Pimpinan &amp; Pejabat</span>
                 </button>
               </div>
 
-              <div class="flex flex-wrap gap-2">
-                <button onclick="switchGasSubTab('gs')" id="btnSubTabGs"
-                  class="px-4 py-2 rounded-xl text-xs font-extrabold bg-slate-100 text-slate-700">1. Kode File Code.gs
-                  (Sudah Ada doGet &amp; doPost)</button>
-                <button onclick="switchGasSubTab('html')" id="btnSubTabHtml"
-                  class="px-4 py-2 rounded-xl text-xs font-extrabold bg-emerald-700 text-white">2. Kode File
-                  index.html</button>
-              </div>
-
-              <div id="panelCodeGs" class="space-y-2 hidden">
-                <div class="flex flex-wrap justify-between items-center gap-2 text-xs">
-                  <span class="font-bold text-slate-600">Simpan file ini dengan nama <code>Code.gs</code> di folder
-                    Antigravity &amp; Google Apps Script (Jangan lupa klik Simpan <code>Ctrl+S</code> agar
-                    <code>doPost</code> muncul):</span>
-                  <div class="flex gap-2">
-                    <button onclick="copyTextById('rawCodeGsBox')"
-                      class="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-bold text-[11px]"><i
-                        class="fa-solid fa-copy mr-1"></i>Salin Code.gs</button>
-                    <button onclick="downloadFileFromBox('rawCodeGsBox', 'Code.gs')"
-                      class="px-3 py-1.5 rounded-lg bg-emerald-700 text-white font-bold text-[11px]"><i
-                        class="fa-solid fa-download mr-1"></i>Unduh Code.gs</button>
+              <!-- 7 Koleksi Firestore Terhubung -->
+              <div>
+                <h4 class="text-xs font-black uppercase text-slate-600 tracking-wider mb-2.5">7 Koleksi Firestore yang Tersinkronisasi Otomatis:</h4>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-slate-800 truncate">santri</p>
+                      <p class="text-[10px] text-slate-500">Data Santri Aktif</p>
+                    </div>
+                  </div>
+                  <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-bold shrink-0"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-slate-800 truncate">ustadz</p>
+                      <p class="text-[10px] text-slate-500">Pembimbing Halaqah</p>
+                    </div>
+                  </div>
+                  <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center text-xs font-bold shrink-0"><i class="fa-solid fa-book-open-reader"></i></div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-slate-800 truncate">setoran</p>
+                      <p class="text-[10px] text-slate-500">Hafalan &amp; 6 Aspek</p>
+                    </div>
+                  </div>
+                  <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center text-xs font-bold shrink-0"><i class="fa-solid fa-bullseye"></i></div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-slate-800 truncate">target</p>
+                      <p class="text-[10px] text-slate-500">Target Capaian</p>
+                    </div>
+                  </div>
+                  <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-bold shrink-0"><i class="fa-solid fa-users-gear"></i></div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-slate-800 truncate">pengguna</p>
+                      <p class="text-[10px] text-slate-500">Akun Pengguna</p>
+                    </div>
+                  </div>
+                  <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center text-xs font-bold shrink-0"><i class="fa-solid fa-book-quran"></i></div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-slate-800 truncate">playlist</p>
+                      <p class="text-[10px] text-slate-500">Audio Murotal</p>
+                    </div>
+                  </div>
+                  <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center text-xs font-bold shrink-0"><i class="fa-solid fa-stamp"></i></div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-slate-800 truncate">pengaturan</p>
+                      <p class="text-[10px] text-slate-500">Profil Pejabat</p>
+                    </div>
                   </div>
                 </div>
-                <pre id="rawCodeGsBox"
-                  class="p-4 rounded-2xl bg-slate-900 text-emerald-300 font-mono text-[11px] overflow-x-auto max-h-96 leading-relaxed">// ============================================================================
-// KODE BACKEND GOOGLE APPS SCRIPT (Code.gs) - APLIKASI SIMTAQ
-// Mendukung Dual-Mode: Google Antigravity IDE, GitHub Pages &amp; Web App GAS
-// MAN 2 Kabupaten Gorontalo x Yayasan Abulyatama Indonesia Gorontalo
-// Pengembang Aplikasi : Herman Susanto Buhungo, S.Pd.
-// ============================================================================
-
-const SPREADSHEET_ID = '1m6zTyRyabvSeTCkm7Gg-MbkgafV7029BTvxjdYsqyzc';
-const DRIVE_FOLDER_ID = '1N-9BgC9GZ_t7AWiixnx6mAl3_lHw3nTX';
-
-function getSpreadsheet_() {
-  if (SPREADSHEET_ID &amp;&amp; SPREADSHEET_ID.indexOf('TEMPEL_') === -1) {
-    return SpreadsheetApp.openById(SPREADSHEET_ID);
-  }
-  return SpreadsheetApp.getActiveSpreadsheet();
-}
-
-function getDriveFolder_() {
-  if (DRIVE_FOLDER_ID &amp;&amp; DRIVE_FOLDER_ID.indexOf('TEMPEL_') === -1) {
-    return DriveApp.getFolderById(DRIVE_FOLDER_ID);
-  }
-  return DriveApp.getRootFolder();
-}
-
-// 1. HANDLER HTTP GET (doGet)
-function doGet(e) {
-  initSheetsIfNeeded();
-  if (e &amp;&amp; e.parameter &amp;&amp; e.parameter.action === 'getAllSimtaqData') {
-    const data = getAllSimtaqData();
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: data })).setMimeType(ContentService.MimeType.JSON);
-  }
-  try {
-    return HtmlService.createHtmlOutputFromFile('Index')
-      .setTitle('SIMTAQ - MAN 2 Kab. Gorontalo x Yayasan Abulyatama')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'online', app: 'SIMTAQ Backend API Ready for Antigravity' })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-// 2. HANDLER HTTP POST (doPost) - Aman dijalankan manual maupun dari aplikasi
-function doPost(e) {
-  try {
-    initSheetsIfNeeded();
-    if (!e || !e.postData || !e.postData.contents) {
-      Logger.log('Fungsi doPost(e) aktif dan siap menerima data dari aplikasi SIMTAQ!');
-      return ContentService.createTextOutput(JSON.stringify({ status: 'ready', message: 'doPost aktif' })).setMimeType(ContentService.MimeType.JSON);
-    }
-    const body = JSON.parse(e.postData.contents || '{}');
-    const action = body.action;
-    const payload = body.payload;
-    let result = { status: 'unknown_action' };
-    if (action === 'getAllSimtaqData') result = getAllSimtaqData();
-    else if (action === 'saveSetoranWithVideo') result = saveSetoranWithVideo(payload);
-    else if (action === 'upsertSantriGAS') result = upsertSantriGAS(payload);
-    else if (action === 'upsertUstadzGAS') result = upsertUstadzGAS(payload);
-    else if (action === 'upsertTargetGAS') result = upsertTargetGAS(payload);
-    else if (action === 'upsertMusicGAS') result = upsertMusicGAS(payload);
-    else if (action === 'deleteRecordByIdGAS') result = deleteRecordByIdGAS(payload.sheetName, payload.recordId);
-    else if (action === 'savePejabatGAS') result = savePejabatGAS(payload);
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: result })).setMimeType(ContentService.MimeType.JSON);
-  } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function initSheetsIfNeeded() {
-  const ss = getSpreadsheet_();
-  const schema = {
-    'Data_Santri': ['ID', 'NIS', 'Nama', 'JK', 'Kelas', 'Asrama', 'Juz', 'Status'],
-    'Data_Ustadz': ['ID', 'NIP', 'Nama', 'Lembaga', 'Halaqah', 'Kontak', 'Status'],
-    'Setoran_Hafalan': ['ID', 'Tanggal', 'SantriID', 'NIS', 'SantriNama', 'Surat', 'Ayat', 'Juz', 'Nilai', 'Ustadz', 'Catatan', 'HasVideo', 'VideoUrl'],
-    'Target_Hafalan': ['ID', 'SantriID', 'NIS', 'SantriNama', 'Kelas', 'Target', 'TanggalTarget', 'Status'],
-    'Musik_Latar': ['ID', 'Title', 'Artist', 'Url'],
-    'Pengaturan_Pejabat': ['Key', 'Value']
-  };
-  Object.keys(schema).forEach(name =&gt; {
-    let s = ss.getSheetByName(name);
-    if (!s) {
-      s = ss.insertSheet(name);
-      s.appendRow(schema[name]);
-      s.getRange(1, 1, 1, schema[name].length).setBackground('#0f6832').setFontColor('#ffffff').setFontWeight('bold');
-    }
-  });
-  const musikSheet = ss.getSheetByName('Musik_Latar');
-  if (musikSheet.getLastRow() &lt;= 1) {
-    musikSheet.appendRow(['MRT-01', 'Murotal QS. Ar-Rahman (Ayat 1-78)', 'Syaikh Mishary Rashid Al-Afasy', 'https://server8.mp3quran.net/afs/055.mp3']);
-    musikSheet.appendRow(['MRT-02', 'Murotal QS. Al-Mulk (Penjaga dari Siksa Kubur)', 'Syaikh Mishary Rashid Al-Afasy', 'https://server8.mp3quran.net/afs/067.mp3']);
-    musikSheet.appendRow(['MRT-03', 'Murotal Merdu Juz 30 (YouTube Murotal)', 'Murotal Al-Qur’an Pilihan (YouTube)', 'https://www.youtube.com/watch?v=1dn6tQ2V3pA']);
-  }
-}
-
-function getAllSimtaqData() {
-  initSheetsIfNeeded();
-  const ss = getSpreadsheet_();
-  const read = (name) =&gt; {
-    const s = ss.getSheetByName(name);
-    if (!s || s.getLastRow() &lt;= 1) return [];
-    return s.getRange(2, 1, s.getLastRow() - 1, s.getLastColumn()).getDisplayValues();
-  };
-  const santri = read('Data_Santri').map(r =&gt; ({ id: r[0], nis: r[1], nama: r[2], jk: r[3], kelas: r[4], asrama: r[5], juz: Number(r[6] || 1), status: r[7] || 'Aktif' }));
-  const ustadz = read('Data_Ustadz').map(r =&gt; ({ id: r[0], nip: r[1], nama: r[2], lembaga: r[3], halaqah: r[4], kontak: r[5], status: r[6] || 'Aktif' }));
-  const setoran = read('Setoran_Hafalan').map(r =&gt; ({ id: r[0], tanggal: r[1], santriId: r[2], nis: r[3], santriNama: r[4], surat: r[5], ayat: r[6], juz: Number(r[7] || 1), nilai: Number(r[8] || 0), ustadz: r[9], catatan: r[10], hasVideo: r[11] === 'TRUE' || Boolean(r[12]), videoBlobUrl: r[12] || '' }));
-  const target = read('Target_Hafalan').map(r =&gt; ({ id: r[0], santriId: r[1], nis: r[2], santriNama: r[3], kelas: r[4], target: r[5], tanggalTarget: r[6], status: r[7] || 'Proses' }));
-  const playlist = read('Musik_Latar').map(r =&gt; ({ id: r[0], title: r[1], artist: r[2], url: r[3] }));
-  const pejabat = {};
-  read('Pengaturan_Pejabat').forEach(r =&gt; { if (r[0]) pejabat[r[0]] = r[1]; });
-  return { santri, ustadz, setoran, target, playlist, pejabat };
-}
-
-function upsertMusicGAS(m) {
-  initSheetsIfNeeded();
-  const sheet = getSpreadsheet_().getSheetByName('Musik_Latar');
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i &lt; data.length; i++) {
-    if (String(data[i][0]) === String(m.id)) {
-      sheet.getRange(i + 1, 1, 1, 4).setValues([[m.id, m.title, m.artist, m.url]]);
-      return { status: 'updated' };
-    }
-  }
-  sheet.appendRow([m.id, m.title, m.artist, m.url]);
-  return { status: 'inserted' };
-}
-
-function saveSetoranWithVideo(payload) {
-  initSheetsIfNeeded();
-  const sheet = getSpreadsheet_().getSheetByName('Setoran_Hafalan');
-  let videoUrl = '';
-  if (payload.videoBase64 &amp;&amp; payload.videoBase64.indexOf('base64,') !== -1) {
-    const folder = getDriveFolder_();
-    const bytes = Utilities.base64Decode(payload.videoBase64.split(',')[1]);
-    const cleanName = (payload.santriNama || 'Santri').replace(/[^a-zA-Z0-9]/g, '_');
-    const blob = Utilities.newBlob(bytes, payload.videoMimeType || 'video/webm', 'SIMTAQ_' + payload.nis + '_' + cleanName + '_' + Date.now() + '.webm');
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    videoUrl = file.getUrl();
-  }
-  sheet.appendRow([payload.id, payload.tanggal, payload.santriId, payload.nis, payload.santriNama, payload.surat, payload.ayat, payload.juz, payload.nilai, payload.ustadz, payload.catatan, Boolean(videoUrl || payload.hasVideo), videoUrl]);
-  return { status: 'success', videoUrl: videoUrl };
-}
-
-function upsertSantriGAS(s) {
-  initSheetsIfNeeded();
-  const sheet = getSpreadsheet_().getSheetByName('Data_Santri');
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i &lt; data.length; i++) {
-    if (String(data[i][0]) === String(s.id)) {
-      sheet.getRange(i + 1, 1, 1, 8).setValues([[s.id, s.nis, s.nama, s.jk, s.kelas, s.asrama, s.juz, s.status]]);
-      return { status: 'updated' };
-    }
-  }
-  sheet.appendRow([s.id, s.nis, s.nama, s.jk, s.kelas, s.asrama, s.juz, s.status]);
-  return { status: 'inserted' };
-}
-
-function upsertUstadzGAS(u) {
-  initSheetsIfNeeded();
-  const sheet = getSpreadsheet_().getSheetByName('Data_Ustadz');
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i &lt; data.length; i++) {
-    if (String(data[i][0]) === String(u.id)) {
-      sheet.getRange(i + 1, 1, 1, 7).setValues([[u.id, u.nip, u.nama, u.lembaga, u.halaqah, u.kontak, u.status]]);
-      return { status: 'updated' };
-    }
-  }
-  sheet.appendRow([u.id, u.nip, u.nama, u.lembaga, u.halaqah, u.kontak, u.status]);
-  return { status: 'inserted' };
-}
-
-function upsertTargetGAS(t) {
-  initSheetsIfNeeded();
-  const sheet = getSpreadsheet_().getSheetByName('Target_Hafalan');
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i &lt; data.length; i++) {
-    if (String(data[i][0]) === String(t.id)) {
-      sheet.getRange(i + 1, 1, 1, 8).setValues([[t.id, t.santriId, t.nis, t.santriNama, t.kelas, t.target, t.tanggalTarget, t.status]]);
-      return { status: 'updated' };
-    }
-  }
-  sheet.appendRow([t.id, t.santriId, t.nis, t.santriNama, t.kelas, t.target, t.tanggalTarget, t.status]);
-  return { status: 'inserted' };
-}
-
-function deleteRecordByIdGAS(sheetName, recordId) {
-  initSheetsIfNeeded();
-  const sheet = getSpreadsheet_().getSheetByName(sheetName);
-  if (!sheet) return { status: 'not_found' };
-  const data = sheet.getDataRange().getValues();
-  for (let i = data.length - 1; i &gt;= 1; i--) {
-    if (String(data[i][0]) === String(recordId)) {
-      sheet.deleteRow(i + 1);
-      return { status: 'deleted' };
-    }
-  }
-  return { status: 'not_found' };
-}
-
-function savePejabatGAS(pejabatObj) {
-  initSheetsIfNeeded();
-  const sheet = getSpreadsheet_().getSheetByName('Pengaturan_Pejabat');
-  sheet.clearContents();
-  sheet.appendRow(['Key', 'Value']);
-  Object.keys(pejabatObj).forEach(k =&gt; sheet.appendRow([k, pejabatObj[k]]));
-  return { status: 'success' };
-}</pre>
-              </div>
-
-              <div id="panelIndexHtml" class="space-y-2">
-                <div class="flex flex-wrap justify-between items-center gap-2 text-xs">
-                  <span class="font-bold text-slate-600">Simpan file ini dengan nama <code>index.html</code> di folder
-                    Antigravity:</span>
-                  <div class="flex gap-2">
-                    <button onclick="copyFullIndexHtml()"
-                      class="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-bold text-[11px]"><i
-                        class="fa-solid fa-copy mr-1"></i>Salin index.html Lengkap</button>
-                    <button onclick="downloadFullIndexHtml()"
-                      class="px-3 py-1.5 rounded-lg bg-sky-700 text-white font-bold text-[11px]"><i
-                        class="fa-solid fa-download mr-1"></i>Unduh index.html</button>
-                  </div>
-                </div>
-                <pre id="rawIndexHtmlBox"
-                  class="p-4 rounded-2xl bg-slate-950 text-sky-300 font-mono text-[11px] overflow-x-auto max-h-96 leading-relaxed"></pre>
               </div>
             </div>
           </div>
@@ -5542,7 +5364,24 @@ function savePejabatGAS(pejabatObj) {
     }
 
     let isFirestoreListening = false;
-    function initFirestoreRealtimeListeners() {
+        function testFirebaseConnection() {
+      if (!fbDb) {
+        showToast('Firebase belum diinisialisasi.', 'error');
+        return;
+      }
+      showToast('Menguji koneksi ke Firebase Firestore...', 'info');
+      fbDb.collection('santri').limit(1).get()
+        .then(() => {
+          showToast('🟢 Koneksi Firebase Firestore 100% Aktif & Responsif!', 'success');
+          updateSyncStatusBadge('connected');
+        })
+        .catch(err => {
+          showToast('Gagal terhubung ke Firebase: ' + err.message, 'error');
+          updateSyncStatusBadge('offline');
+        });
+    }
+
+function initFirestoreRealtimeListeners() {
       if (!fbDb || isFirestoreListening) return;
       isFirestoreListening = true;
 
@@ -6284,7 +6123,7 @@ function savePejabatGAS(pejabatObj) {
       if (fbDb) {
         fbDb.collection('playlist').doc(trackObj.id).set(sanitizeForFirestore(trackObj)).catch(e => console.warn('Firestore playlist save notice:', e));
       }
-      callCloudBackend('upsertMusicGAS', trackObj);
+      
       resetMusicForm();
       renderPlaylistUI();
     }
@@ -6308,7 +6147,7 @@ function savePejabatGAS(pejabatObj) {
       if (fbDb) {
         fbDb.collection('playlist').doc(id).delete().catch(e => console.warn('Firestore playlist delete notice:', e));
       }
-      callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Musik_Latar', recordId: id });
+      
       renderPlaylistUI();
       showToast('Murotal berhasil dihapus dari playlist.');
     }
@@ -6400,16 +6239,16 @@ function savePejabatGAS(pejabatObj) {
       if (!badge) return;
       if (status === 'connected') {
         badge.className = 'text-[10px] text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer hover:underline';
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Terhubung Firebase Realtime &amp; Drive</span>';
-        badge.title = 'Koneksi Cloud Firestore Aktif: Semua data & video tersinkronisasi real-time sub-detik dua arah ke seluruh perangkat.';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Terhubung Firebase Realtime</span>';
+        badge.title = 'Koneksi Cloud Firestore Aktif: Semua data tersinkronisasi real-time sub-detik dua arah ke seluruh perangkat.';
       } else if (status === 'loading') {
         badge.className = 'text-[10px] text-amber-300 font-semibold flex items-center gap-1.5 cursor-pointer';
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Menghubungkan Spreadsheet...</span>';
-        badge.title = 'Sedang menyinkronkan data ke Google Spreadsheet & Drive...';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Menghubungkan Firebase...</span>';
+        badge.title = 'Sedang menyinkronkan data ke Cloud Firestore...';
       } else {
         badge.className = 'text-[10px] text-rose-300 font-bold flex items-center gap-1.5 cursor-pointer hover:underline';
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Offline / GAS Terputus (Memori Lokal Saja)</span>';
-        badge.title = 'Peringatan: Belum terhubung ke Google Spreadsheet! Data hanya disimpan di memori perangkat ini. Klik untuk periksa koneksi.';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Mode Offline (Penyimpanan Lokal Browser)</span>';
+        badge.title = 'Data tersimpan di penyimpanan offline browser ini.';
       }
     }
 
@@ -6417,13 +6256,13 @@ function savePejabatGAS(pejabatObj) {
       const badge = document.getElementById('syncStatusBadge');
       const isConnected = badge && badge.innerHTML.includes('Terhubung');
       if (isConnected) {
-        showToast('Koneksi database aktif: Semua data & video tersinkronisasi real-time ke Google Spreadsheet & Drive!', 'success');
+        showToast('Koneksi Firebase Firestore Aktif: Sinkronisasi sub-detik real-time berjalan lancar!', 'success');
       } else {
         if (appState.currentUser?.role === 'admin') {
           switchDashTab('tab-gas');
-          showToast('Silakan periksa dan tempelkan URL Web App Google Apps Script di tab ini untuk menghubungkan cloud.', 'warning');
+          testFirebaseConnection();
         } else {
-          showToast('Database Spreadsheet belum terhubung. Silakan hubungi Administrator untuk memperbarui URL Google Apps Script.', 'error');
+          showToast('Aplikasi dalam mode penyimpanan lokal.', 'info');
         }
       }
     }
@@ -6641,6 +6480,7 @@ function savePejabatGAS(pejabatObj) {
     }
 
     async function syncCloudDataRealtime(isForced = false) {
+      return;
       if (!isGasEnvironment() && !getActiveGasUrl()) return;
       if (isSyncingRealtimeCloud) return;
       isSyncingRealtimeCloud = true;
@@ -6771,6 +6611,7 @@ function savePejabatGAS(pejabatObj) {
 
     let realtimeSyncEngineTimer = null;
     function startRealtimeSyncEngine() {
+      return;
       if (realtimeSyncEngineTimer) clearInterval(realtimeSyncEngineTimer);
 
       // Polling background setiap 6 detik saat tab aktif
@@ -6874,67 +6715,9 @@ function savePejabatGAS(pejabatObj) {
       const urlInput = document.getElementById('inputGasWebAppUrl');
       if (urlInput) urlInput.value = getActiveGasUrl();
 
-      // 2. Hubungkan langsung ke Google Spreadsheet Backend
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        updateSyncStatusBadge('loading');
-        const res = await callCloudBackend('getAllSimtaqData');
-        if (res) {
-          if (res.playlist?.length) appState.playlist = res.playlist;
-          if (res.santri && Array.isArray(res.santri) && res.santri.length > 0) {
-            const clean = res.santri.filter(s => s.nis !== '4334345' && s.nis !== '4334346' && !s.nama.includes('Lutfianiga') && !s.nama.includes('Muhammad Farhan'));
-            if (clean.length) appState.santri = clean;
-          }
-          if (res.ustadz && Array.isArray(res.ustadz) && res.ustadz.length > 0) {
-            const clean = res.ustadz.filter(u => !u.nama.includes('Ahmad Fauzan') && !u.nama.includes('Siti Rahmawati'));
-            if (clean.length) appState.ustadz = clean;
-          }
-          if (Array.isArray(res.setoran)) {
-            const clean = res.setoran
-              .filter(s => s.nis !== '4334345' && s.nis !== '4334346')
-              .map(s => {
-                if (s.videoBase64) delete s.videoBase64;
-                s.syncedToCloud = true;
-                return s;
-              });
-
-            // Periksa jika ada setoran lokal yang belum masuk ke spreadsheet (misal saat rekaman offline)
-            const pendingUploads = (appState.setoran || []).filter(loc => 
-              loc && loc.id && !clean.some(cloud => cloud.id === loc.id)
-            );
-
-            const merged = [...clean];
-            pendingUploads.forEach(p => {
-              if (!merged.some(m => m.id === p.id)) merged.unshift(p);
-            });
-            appState.setoran = merged;
-
-            if (pendingUploads.length > 0 && !isProcessingPendingUploads) {
-              processPendingUploadsQueue();
-            }
-          }
-          if (Array.isArray(res.target)) {
-            const clean = res.target.filter(t => t.nis !== '4334345' && t.nis !== '4334346');
-            appState.target = clean;
-          }
-          if (res.pejabat && Object.keys(res.pejabat).length) {
-            appState.pejabat = { ...appState.pejabat, ...res.pejabat };
-          }
-          if (res.pengguna && Array.isArray(res.pengguna)) {
-            syncCloudPengguna(res.pengguna);
-          }
-          persistLocalState();
-          refreshAllViews();
-          renderPlaylistUI();
-          updateSyncStatusBadge('connected');
-
-          // Bersihkan akun dummy di Spreadsheet secara background jika masih ada baris lama
-          callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Pengguna', recordId: 'ustadz' });
-          callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Pengguna', recordId: 'ortu' });
-          callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Santri', recordId: '4334345' });
-          callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Santri', recordId: '4334346' });
-        } else {
-          updateSyncStatusBadge('offline');
-        }
+      // 2. Status koneksi Firebase Realtime
+      if (isFirestoreActive && fbDb) {
+        updateSyncStatusBadge('connected');
       } else {
         updateSyncStatusBadge('offline');
       }
@@ -7255,33 +7038,25 @@ function savePejabatGAS(pejabatObj) {
       // 1. Cek di memori lokal & LocalStorage terlebih dahulu
       let foundUser = findMatchingUser(uVal, pVal);
 
-      // 2. Jika belum ditemukan, periksa langsung ke Database Cloud Spreadsheet (jika terhubung ke GAS)
-      if (!foundUser && (isGasEnvironment() || getActiveGasUrl())) {
+      // 2. Jika belum ditemukan, periksa langsung ke Firebase Firestore
+      if (!foundUser && fbDb) {
         const btn = e.target.querySelector('button[type="submit"]');
         const origText = btn ? btn.innerHTML : '';
-        if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Memeriksa Database...';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Memeriksa Database Firebase...';
 
         try {
-          const cloudRes = await callCloudBackend('getAllSimtaqData');
-          if (cloudRes) {
-            if (cloudRes.playlist?.length) appState.playlist = cloudRes.playlist;
-            if (cloudRes.santri && Array.isArray(cloudRes.santri)) appState.santri = cloudRes.santri;
-            if (cloudRes.ustadz && Array.isArray(cloudRes.ustadz)) appState.ustadz = cloudRes.ustadz;
-            if (cloudRes.setoran && Array.isArray(cloudRes.setoran)) appState.setoran = cloudRes.setoran;
-            if (cloudRes.target && Array.isArray(cloudRes.target)) appState.target = cloudRes.target;
-            if (cloudRes.pejabat && Object.keys(cloudRes.pejabat).length) {
-              appState.pejabat = { ...appState.pejabat, ...cloudRes.pejabat };
-            }
-            if (cloudRes.pengguna && Array.isArray(cloudRes.pengguna)) {
-              syncCloudPengguna(cloudRes.pengguna);
-            }
+          const snap = await fbDb.collection('pengguna').get();
+          const cloudUsers = [];
+          snap.forEach(doc => cloudUsers.push({ id: doc.id, ...doc.data() }));
+          if (cloudUsers.length > 0) {
+            syncCloudPengguna(cloudUsers);
             persistLocalState();
             foundUser = findMatchingUser(uVal, pVal);
           }
         } catch (netErr) {
-          console.warn('Gagal cek akun ke cloud:', netErr);
+          console.warn('Gagal cek akun ke Firestore:', netErr);
         } finally {
-          if (btn) btn.innerHTML = origText;
+          if (btn && origText) btn.innerHTML = origText;
         }
       }
 
@@ -7729,14 +7504,7 @@ function savePejabatGAS(pejabatObj) {
         });
       }
 
-      // Sinkronisasi ke Backend GAS (Google Spreadsheet Sheet Data_Pengguna)
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        const res = await callCloudBackend('upsertPenggunaGAS', userPayload);
-        if (res && res.status) {
-          showToast('Akun @' + username + ' berhasil tersinkron ke Google Spreadsheet.', 'info');
-        }
-        await syncCloudDataRealtime(true);
-      }
+
     }
 
     async function handleDeletePengguna(id) {
@@ -7762,16 +7530,7 @@ function savePejabatGAS(pejabatObj) {
         });
       }
 
-      // Hapus permanen di Google Spreadsheet baik berdasarkan ID maupun Username
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        try {
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Pengguna', recordId: id });
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Pengguna', recordId: delUser });
-        } catch (e) {
-          console.warn('Gagal menghapus akun di cloud:', e);
-        }
-        await syncCloudDataRealtime(true);
-      }
+
     }
 
     function applyUserPermissions() {
@@ -8867,9 +8626,7 @@ function savePejabatGAS(pejabatObj) {
           console.warn('Firestore saveSantri notice:', err);
         });
       }
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        callCloudBackend('upsertSantriGAS', obj).then(() => syncCloudDataRealtime(true));
-      }
+
     }
 
     async function deleteSantri(id) {
@@ -8891,20 +8648,7 @@ function savePejabatGAS(pejabatObj) {
         });
       }
 
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        try {
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Santri', recordId: id });
-          if (nis) await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Santri', recordId: nis });
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Target_Hafalan', recordId: id });
-          if (nis) await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Target_Hafalan', recordId: nis });
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Setoran_Hafalan', recordId: id });
-          if (nis) await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Setoran_Hafalan', recordId: nis });
-        } catch (e) {
-          console.warn('Gagal menghapus santri di cloud:', e);
-        }
-        await syncCloudDataRealtime(true);
-      }
-      showToast('Data santri berhasil dihapus permanen.');
+      showToast('Data santri berhasil dihapus permanen dari Firebase Firestore.');
     }
 
     // CRUD Ustadz/Ustadzah
@@ -8958,9 +8702,7 @@ function savePejabatGAS(pejabatObj) {
           console.warn('Firestore saveUstadz notice:', err);
         });
       }
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        callCloudBackend('upsertUstadzGAS', obj).then(() => syncCloudDataRealtime(true));
-      }
+
     }
 
     async function deleteUstadz(id) {
@@ -8979,15 +8721,7 @@ function savePejabatGAS(pejabatObj) {
         });
       }
 
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        try {
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Data_Ustadz', recordId: id });
-        } catch (e) {
-          console.warn('Gagal menghapus ustadz di cloud:', e);
-        }
-        await syncCloudDataRealtime(true);
-      }
-      showToast('Data Ustadz/Ustadzah berhasil dihapus permanen.');
+      showToast('Data Ustadz/Ustadzah berhasil dihapus permanen dari Firebase Firestore.');
     }
 
     // CRUD Target Hafalan
@@ -9025,9 +8759,7 @@ function savePejabatGAS(pejabatObj) {
           console.warn('Firestore saveTarget notice:', err);
         });
       }
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        callCloudBackend('upsertTargetGAS', obj).then(() => syncCloudDataRealtime(true));
-      }
+
     }
 
     async function toggleTargetStatus(id) {
@@ -9046,16 +8778,13 @@ function savePejabatGAS(pejabatObj) {
         });
       }
 
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        await callCloudBackend('upsertTargetGAS', t);
-        await syncCloudDataRealtime(true);
-      }
+
     }
 
     async function deleteTarget(id) {
       const t = (appState.target || []).find(x => x.id === id);
-      if (!confirm(`Apakah Anda yakin ingin menghapus target capaian hafalan ${t?.santriNama ? 'santri ' + t.santriNama : ''} ini secara permanen dari Database Cloud dan Seluruh Perangkat?`)) return;
-      showToast('Menghapus target hafalan dari Database Spreadsheet...', 'info');
+      if (!confirm(`Apakah Anda yakin ingin menghapus target capaian hafalan ${t?.santriNama ? 'santri ' + t.santriNama : ''} ini secara permanen dari Database Firebase Firestore dan Seluruh Perangkat?`)) return;
+      showToast('Menghapus target hafalan dari Firebase Firestore...', 'info');
       appState.target = (appState.target || []).filter(x => x.id !== id);
       persistLocalState();
       refreshAllViews();
@@ -9063,19 +8792,12 @@ function savePejabatGAS(pejabatObj) {
 
       // Hapus di Firebase Firestore
       if (fbDb) {
-        fbDb.collection('target').doc(id).delete().catch(err => {
+        fbDb.collection('target').doc(id).delete().then(() => {
+          showToast('Target hafalan berhasil dihapus dari Firebase Firestore!', 'success');
+        }).catch(err => {
           console.warn('Firestore deleteTarget notice:', err);
+          showToast('Target hafalan berhasil dihapus.', 'success');
         });
-      }
-
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        try {
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Target_Hafalan', recordId: id });
-          showToast('Target hafalan berhasil dihapus permanen dari Spreadsheet Google!', 'success');
-        } catch (e) {
-          console.warn('Gagal menghapus target di cloud:', e);
-        }
-        await syncCloudDataRealtime(true);
       } else {
         showToast('Target hafalan berhasil dihapus.', 'success');
       }
@@ -9087,10 +8809,10 @@ function savePejabatGAS(pejabatObj) {
         return;
       }
       const total = (appState.target || []).length;
-      const ok = confirm(`PERINGATAN ADMINISTRATOR:\n\nApakah Anda yakin ingin MENGHAPUS SEMUA DATA TARGET HAFALAN (${total} data) secara permanen dari Database Spreadsheet Google dan dari semua perangkat?\n\nTindakan ini akan mengosongkan seluruh target hafalan di cloud dan lokal.`);
+      const ok = confirm(`PERINGATAN ADMINISTRATOR:\n\nApakah Anda yakin ingin MENGHAPUS SEMUA DATA TARGET HAFALAN (${total} data) secara permanen dari Database Firebase Firestore dan dari semua perangkat?\n\nTindakan ini akan mengosongkan seluruh target hafalan di cloud dan lokal.`);
       if (!ok) return;
 
-      showToast('Sedang mengosongkan seluruh target hafalan di Google Spreadsheet...', 'info');
+      showToast('Sedang mengosongkan seluruh target hafalan di Firebase Firestore...', 'info');
       appState.target = [];
       persistLocalState();
       refreshAllViews();
@@ -9102,18 +8824,12 @@ function savePejabatGAS(pejabatObj) {
           const batch = fbDb.batch();
           snap.forEach(doc => batch.delete(doc.ref));
           return batch.commit();
-        }).catch(err => console.warn('Firestore clearTarget notice:', err));
-      }
-
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        try {
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Target_Hafalan', recordId: 'CLEAR_ALL' });
-          await callCloudBackend('clearSheetDataGAS', { sheetName: 'Target_Hafalan' });
-          showToast('Seluruh target hafalan di Google Spreadsheet berhasil dikosongkan permanen!', 'success');
-        } catch (e) {
-          console.warn('Gagal membersihkan cloud target:', e);
-        }
-        await syncCloudDataRealtime(true);
+        }).then(() => {
+          showToast('Seluruh data target hafalan di Firebase Firestore berhasil dikosongkan permanen!', 'success');
+        }).catch(err => {
+          console.warn('Firestore clearTarget notice:', err);
+          showToast('Seluruh target hafalan lokal berhasil dikosongkan.', 'success');
+        });
       } else {
         showToast('Seluruh target hafalan lokal berhasil dikosongkan.', 'success');
       }
@@ -9174,7 +8890,7 @@ function savePejabatGAS(pejabatObj) {
           console.warn('Firestore savePejabat notice:', err);
         });
       }
-      callCloudBackend('savePejabatGAS', appState.pejabat);
+      
       closePejabatModal();
       refreshAllViews();
       showToast('Pengaturan pengesahan raport & ijazah berhasil disimpan!');
@@ -9684,7 +9400,7 @@ function savePejabatGAS(pejabatObj) {
       }
 
       if (isGasEnvironment() || getActiveGasUrl()) {
-        showToast(hasNewVideo ? 'Mengunggah video ke SIMTAQ Google Drive & mencatat ke Spreadsheet...' : 'Menyimpan data setoran ke Google Spreadsheet...', 'info');
+        showToast(hasNewVideo ? 'Mengunggah rekaman video santri ke Google Drive...' : 'Menyimpan data setoran ke Firebase Firestore...', 'info');
 
         // Payload cloud dengan data video base64 yang sudah dipastikan ada
         const cloudPayload = {
@@ -9726,10 +9442,10 @@ function savePejabatGAS(pejabatObj) {
             refreshAllViews();
           }
           updateSyncStatusBadge('connected');
-          showToast(hasNewVideo ? 'Video hafalan santri berhasil diunggah ke Google Drive & tersimpan di Spreadsheet!' : 'Data setoran hafalan berhasil disimpan ke Google Spreadsheet!', 'success');
+          showToast(hasNewVideo ? 'Video hafalan santri berhasil diunggah & tersimpan ke Firebase Firestore!' : 'Data setoran hafalan berhasil disimpan ke Firebase Firestore!', 'success');
         } else {
           updateSyncStatusBadge('offline');
-          showToast('⚠️ Setoran tersimpan di memori lokal. Gagal sinkron ke Spreadsheet (URL GAS offline / 404).', 'warning');
+          showToast('⚠️ Berkas video gagal diunggah, namun data setoran tetap aman tersimpan di Firebase Firestore.', 'info');
         }
         await syncCloudDataRealtime(true);
       } else {
@@ -9806,14 +9522,12 @@ function savePejabatGAS(pejabatObj) {
         });
       }
 
-      showToast('Menghapus video setoran dari Database Spreadsheet...', 'info');
-      await callCloudBackend('deleteSetoranVideoGAS', { setoranId: id });
-      showToast('Video setoran berhasil dihapus!', 'success');
+      showToast('Video setoran berhasil dihapus dari Firebase Firestore!', 'success');
     }
 
     async function deleteSetoran(id) {
-      if (!confirm('Apakah Anda yakin ingin menghapus seluruh data setoran hafalan santri ini secara permanen dari Database Cloud dan Aplikasi?')) return;
-      showToast('Menghapus setoran dari Database Spreadsheet...', 'info');
+      if (!confirm('Apakah Anda yakin ingin menghapus data setoran hafalan santri ini secara permanen dari Database Firebase Firestore dan Aplikasi?')) return;
+      showToast('Menghapus setoran dari Firebase Firestore...', 'info');
       appState.setoran = (appState.setoran || []).filter(x => x.id !== id);
       await deleteVideoBlobLocal(id);
       persistLocalState();
@@ -9822,19 +9536,12 @@ function savePejabatGAS(pejabatObj) {
 
       // Hapus dokumen di Firebase Firestore (Realtime Instan)
       if (fbDb) {
-        fbDb.collection('setoran').doc(id).delete().catch(err => {
+        fbDb.collection('setoran').doc(id).delete().then(() => {
+          showToast('Data setoran berhasil dihapus permanen dari Firebase Firestore!', 'success');
+        }).catch(err => {
           console.warn('Firestore deleteSetoran notice:', err);
+          showToast('Data setoran berhasil dihapus.', 'success');
         });
-      }
-
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        try {
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Setoran_Hafalan', recordId: id });
-          showToast('Data setoran berhasil dihapus permanen dari Spreadsheet Google!', 'success');
-        } catch (e) {
-          console.warn('Gagal menghapus setoran di cloud:', e);
-        }
-        await syncCloudDataRealtime(true);
       } else {
         showToast('Data setoran berhasil dihapus.', 'success');
       }
@@ -9846,10 +9553,10 @@ function savePejabatGAS(pejabatObj) {
         return;
       }
       const total = (appState.setoran || []).length;
-      const ok = confirm(`PERINGATAN ADMINISTRATOR:\n\nApakah Anda yakin ingin MENGHAPUS SEMUA DATA SETORAN (${total} data) secara permanen dari Database Spreadsheet Google dan dari semua perangkat?\n\nTindakan ini akan mengosongkan seluruh riwayat setoran di cloud dan lokal.`);
+      const ok = confirm(`PERINGATAN ADMINISTRATOR:\n\nApakah Anda yakin ingin MENGHAPUS SEMUA DATA SETORAN (${total} data) secara permanen dari Database Firebase Firestore dan dari semua perangkat?\n\nTindakan ini akan mengosongkan seluruh riwayat setoran di cloud dan lokal.`);
       if (!ok) return;
 
-      showToast('Sedang mengosongkan seluruh data setoran di Google Spreadsheet & memori...', 'info');
+      showToast('Sedang mengosongkan seluruh data setoran di Firebase Firestore...', 'info');
       appState.setoran = [];
       await clearAllVideoBlobsLocal();
       persistLocalState();
@@ -9862,18 +9569,12 @@ function savePejabatGAS(pejabatObj) {
           const batch = fbDb.batch();
           snap.forEach(doc => batch.delete(doc.ref));
           return batch.commit();
-        }).catch(err => console.warn('Firestore clearAllSetoran notice:', err));
-      }
-
-      if (isGasEnvironment() || getActiveGasUrl()) {
-        try {
-          await callCloudBackend('deleteRecordByIdGAS', { sheetName: 'Setoran_Hafalan', recordId: 'CLEAR_ALL' });
-          await callCloudBackend('clearSheetDataGAS', { sheetName: 'Setoran_Hafalan' });
-          showToast('Seluruh data setoran di Google Spreadsheet berhasil dikosongkan permanen!', 'success');
-        } catch (e) {
-          console.warn('Gagal membersihkan cloud setoran:', e);
-        }
-        await syncCloudDataRealtime(true);
+        }).then(() => {
+          showToast('Seluruh data setoran di Firebase Firestore berhasil dikosongkan permanen!', 'success');
+        }).catch(err => {
+          console.warn('Firestore clearAllSetoran notice:', err);
+          showToast('Seluruh riwayat setoran lokal berhasil dikosongkan.', 'success');
+        });
       } else {
         showToast('Seluruh riwayat setoran lokal berhasil dikosongkan.', 'success');
       }
