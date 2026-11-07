@@ -5422,6 +5422,7 @@ function initFirestoreRealtimeListeners() {
         persistLocalState();
         refreshAllViews();
         updateSyncStatusBadge('connected');
+        try { autoSyncLocalRecordingsOnStart(); } catch (e) { }
       }, err => console.warn('Firestore setoran listener error:', err));
 
       // 4. Target Realtime Listener
@@ -8980,6 +8981,125 @@ function initFirestoreRealtimeListeners() {
       } catch (e) { }
     }
 
+    // ================= SINKRONISASI VIDEO STREAMING CLOUD FIREBASE =================
+    async function uploadVideoChunksToFirestore(setoranId, base64Data, mime = 'video/webm') {
+      if (!fbDb || !setoranId || !base64Data) return;
+      try {
+        const CHUNK_SIZE = 500000; // ~500KB per chunk aman di bawah batas 1MB Firestore
+        const totalChunks = Math.ceil(base64Data.length / CHUNK_SIZE);
+
+        for (let i = 0; i < totalChunks; i++) {
+          const slice = base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          await fbDb.collection('setoran').doc(setoranId).collection('videoChunks').doc(String(i).padStart(3, '0')).set({
+            index: i,
+            total: totalChunks,
+            data: slice,
+            mime: mime,
+            timestamp: Date.now()
+          });
+        }
+
+        await fbDb.collection('setoran').doc(setoranId).set({
+          hasVideo: true,
+          hasVideoChunks: true,
+          totalChunks: totalChunks
+        }, { merge: true });
+
+        console.log(`Video chunks Firestore berhasil disimpan (${totalChunks} bagian) untuk ID: ${setoranId}`);
+      } catch (err) {
+        console.warn('Gagal simpan video chunks Firestore:', err);
+      }
+    }
+
+    async function fetchVideoBlobFromFirestore(setoranId) {
+      if (!fbDb || !setoranId) return null;
+      try {
+        const snap = await fbDb.collection('setoran').doc(setoranId).collection('videoChunks').orderBy('index').get();
+        if (snap.empty) return null;
+
+        let fullBase64 = '';
+        let mime = 'video/webm';
+        snap.forEach(doc => {
+          const d = doc.data();
+          if (d.data) fullBase64 += d.data;
+          if (d.mime) mime = d.mime;
+        });
+
+        if (!fullBase64 || fullBase64.length < 50) return null;
+
+        let byteString;
+        let mimeType = mime;
+        if (fullBase64.indexOf('base64,') !== -1) {
+          const parts = fullBase64.split('base64,');
+          byteString = atob(parts[1]);
+          const mimeMatch = parts[0].match(/:(.*?);/);
+          if (mimeMatch) mimeType = mimeMatch[1];
+        } else {
+          byteString = atob(fullBase64);
+        }
+
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeType });
+
+        // Simpan ke IndexedDB lokal agar pemutaran selanjutnya instan 0 detik
+        await saveVideoBlobLocal(setoranId, blob);
+        return blob;
+      } catch (err) {
+        console.warn('fetchVideoBlobFromFirestore error:', err);
+        return null;
+      }
+    }
+
+    async function syncSingleLocalVideoToCloud(setoranId, localBlob, item) {
+      if (!localBlob || !fbDb || !setoranId) return;
+      try {
+        const base64 = await new Promise((resolve) => {
+          const r = new FileReader();
+          r.onloadend = () => resolve(r.result || '');
+          r.onerror = () => resolve('');
+          r.readAsDataURL(localBlob);
+        });
+        if (base64 && base64.length > 500) {
+          await uploadVideoChunksToFirestore(setoranId, base64, localBlob.type || 'video/webm');
+          if (item) {
+            item.hasVideo = true;
+            item.hasVideoChunks = true;
+          }
+        }
+      } catch (e) {
+        console.warn('Gagal sinkron lokal ke cloud:', e);
+      }
+    }
+
+    async function autoSyncLocalRecordingsOnStart() {
+      if (!fbDb) return;
+      try {
+        const setoranList = appState.setoran || [];
+        for (const s of setoranList) {
+          if (!s.hasVideo) continue;
+          const localBlob = await getVideoBlobLocal(s.id);
+          if (localBlob && localBlob.size > 1000 && !s.hasVideoChunks) {
+            console.log('Menemukan rekaman santri di perangkat ini, mengunggah ke Firebase Cloud...', s.santriNama);
+            await syncSingleLocalVideoToCloud(s.id, localBlob, s);
+          }
+        }
+      } catch (e) { }
+    }
+
+    async function deleteVideoChunksFromFirestore(id) {
+      if (!fbDb || !id) return;
+      try {
+        const snap = await fbDb.collection('setoran').doc(id).collection('videoChunks').get();
+        const batch = fbDb.batch();
+        snap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      } catch (e) { }
+    }
+
     // Variabel Pemutar Video Modal
     let currentModalObjectUrl = null;
 
@@ -9349,6 +9469,11 @@ function initFirestoreRealtimeListeners() {
         await saveVideoBlobLocal(newId, uploadBlob);
       }
 
+      // Unggah video chunks langsung ke Firebase Firestore agar Admin dan Orang Tua bisa memutar video secara instan
+      if (uploadBase64 && fbDb) {
+        uploadVideoChunksToFirestore(newId, uploadBase64, uploadMime);
+      }
+
       const nTotal = Number(document.getElementById('setoranNilai').value) || 95;
       const mMutqin = Number(document.getElementById('setoranMutqin')?.value) || nTotal;
       const mTajwid = Number(document.getElementById('setoranTajwid')?.value) || nTotal;
@@ -9371,6 +9496,7 @@ function initFirestoreRealtimeListeners() {
         ustadz: document.getElementById('setoranUstadz').value,
         catatan: document.getElementById('setoranCatatan').value.trim(),
         hasVideo: isVideoPresent,
+        hasVideoChunks: Boolean(uploadBase64 || existing?.hasVideoChunks),
         videoBlobUrl: (videoBlobUrl && !videoBlobUrl.startsWith('data:')) ? videoBlobUrl : '',
         driveUrl: existing?.driveUrl || '',
         mutqin: mMutqin,
@@ -9506,9 +9632,11 @@ function initFirestoreRealtimeListeners() {
       const item = appState.setoran.find(x => x.id === id);
       if (!item) return;
       item.hasVideo = false;
+      item.hasVideoChunks = false;
       item.videoBlobUrl = '';
       item.driveUrl = '';
       await deleteVideoBlobLocal(id);
+      await deleteVideoChunksFromFirestore(id);
       persistLocalState();
       refreshAllViews();
 
@@ -9516,6 +9644,7 @@ function initFirestoreRealtimeListeners() {
       if (fbDb) {
         fbDb.collection('setoran').doc(id).set({
           hasVideo: false,
+          hasVideoChunks: false,
           videoBlobUrl: '',
           driveUrl: ''
         }, { merge: true }).catch(err => {
@@ -9531,6 +9660,7 @@ function initFirestoreRealtimeListeners() {
       showToast('Menghapus setoran dari Firebase Firestore...', 'info');
       appState.setoran = (appState.setoran || []).filter(x => x.id !== id);
       await deleteVideoBlobLocal(id);
+      await deleteVideoChunksFromFirestore(id);
       persistLocalState();
       refreshAllViews();
       notifyRealtimeChange('DELETE_SETORAN', { id });
@@ -9615,8 +9745,8 @@ function initFirestoreRealtimeListeners() {
       const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
       const fileId = driveMatch ? driveMatch[1] : '';
 
-      // Konfigurasi tautan tombol aksi Google Drive
-      if (fileId) {
+      // Tautan aksi Google Drive jika ada fileId valid
+      if (fileId && !fileId.includes('1fkEMfaUb8u_H9wqN-0L7c9eXTHFTjtPw') && !fileId.includes('1P3zxTQLDaJkJs9gWzQrF-XedJObnGRqY')) {
         if (btnDrive) {
           btnDrive.href = `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
           btnDrive.classList.remove('hidden');
@@ -9625,38 +9755,52 @@ function initFirestoreRealtimeListeners() {
           btnDownload.href = `https://drive.google.com/uc?export=download&id=${fileId}`;
           btnDownload.classList.remove('hidden');
         }
-      } else if (url && url.startsWith('http')) {
-        if (btnDrive) {
-          btnDrive.href = url;
-          btnDrive.classList.remove('hidden');
-        }
-        if (btnDownload) btnDownload.classList.add('hidden');
       } else {
         if (btnDrive) btnDrive.classList.add('hidden');
         if (btnDownload) btnDownload.classList.add('hidden');
       }
 
-      // 1. Prioritaskan pemutaran langsung jika file tersimpan di memori perangkat / IndexedDB
-      const localBlob = await getVideoBlobLocal(setoranId);
+      modal.classList.remove('hidden');
+
+      // 1. Cek rekaman di memori browser lokal (IndexedDB)
+      let localBlob = await getVideoBlobLocal(setoranId);
+
+      // 2. Jika tidak ada di lokal (misal Admin atau Orang Tua membuka dari HP/Laptop lain), unduh langsung dari Cloud Firebase!
+      if (!localBlob && fbDb) {
+        if (badgeText) {
+          badgeText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-500 mr-1.5"></i><span>Mengunduh Video dari Cloud...</span>';
+        }
+        if (subText) subText.textContent = 'Streaming Firebase HD';
+        localBlob = await fetchVideoBlobFromFirestore(setoranId);
+      }
 
       if (localBlob) {
-        // Video lokal tersedia: Langsung putar (0 detik, tanpa antrean transcode Google Drive)
+        // Video tersedia (dari IndexedDB lokal maupun unduh Cloud Firestore): Putar langsung di <video> HD!
         currentModalObjectUrl = URL.createObjectURL(localBlob);
         if (v) {
           v.src = currentModalObjectUrl;
           v.classList.remove('hidden');
-          v.muted = false; // Audio aktif
+          v.muted = false; // Audio aktif bersuara
           v.play().catch(() => { });
         }
         if (badgeText) {
-          badgeText.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 mr-1.5"></i><span>Pemutaran Instan Lokal (HD)</span>';
+          badgeText.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 mr-1.5"></i><span>Pemutaran Instan Cloud (HD)</span>';
         }
         if (subText) {
-          subText.textContent = fileId ? 'Tersinkron ke SIMTAQ Drive' : 'Tersimpan di Browser';
+          subText.textContent = 'Tersinkron ke SIMTAQ Firebase Realtime';
         }
         if (notice) notice.classList.add('hidden');
-      } else if (fileId) {
-        // Video dari Google Drive (diakses dari perangkat lain atau setelah cache browser dibersihkan)
+        if (iframe) iframe.classList.add('hidden');
+
+        // Jika browser ini pengunggah video asli tapi di Cloud belum ada chunks, sinkronkan otomatis
+        if (fbDb && (!item?.hasVideoChunks)) {
+          syncSingleLocalVideoToCloud(setoranId, localBlob, item);
+        }
+        return;
+      }
+
+      // 3. Fallback jika ada Google Drive URL valid
+      if (fileId && !fileId.includes('1fkEMfaUb8u_H9wqN-0L7c9eXTHFTjtPw') && !fileId.includes('1P3zxTQLDaJkJs9gWzQrF-XedJObnGRqY')) {
         if (badgeText) {
           badgeText.innerHTML = '<i class="fa-brands fa-google-drive text-emerald-600 mr-1.5"></i><span>Google Drive SIMTAQ</span>';
         }
@@ -9671,8 +9815,11 @@ function initFirestoreRealtimeListeners() {
           if (v) v.classList.add('hidden');
           if (standby) standby.classList.add('hidden');
         }
-      } else if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-        // Video dari URL Cloud / Direct Streaming
+        return;
+      }
+
+      // 4. Fallback URL http/https biasa
+      if (url && (url.startsWith('http://') || url.startsWith('https://')) && !url.includes('1fkEMfaUb8u_H9wqN-0L7c9eXTHFTjtPw')) {
         if (badgeText) {
           badgeText.innerHTML = '<i class="fa-solid fa-cloud text-emerald-600 mr-1.5"></i><span>Streaming Cloud</span>';
         }
@@ -9685,21 +9832,11 @@ function initFirestoreRealtimeListeners() {
           v.play().catch(() => { });
         }
         if (iframe) iframe.classList.add('hidden');
-      } else if (url && url.startsWith('data:')) {
-        // Fallback base64
-        if (v) {
-          v.src = url;
-          v.classList.remove('hidden');
-          v.muted = false;
-          v.play().catch(() => { });
-        }
-        if (notice) notice.classList.add('hidden');
-      } else {
-        showToast('Rekaman video belum tersedia untuk setoran ini.', 'info');
         return;
       }
 
-      modal.classList.remove('hidden');
+      showToast('Rekaman video sedang disinkronkan ke Cloud atau belum tersedia.', 'info');
+      modal.classList.add('hidden');
     }
 
     function closeVideoModal() {
