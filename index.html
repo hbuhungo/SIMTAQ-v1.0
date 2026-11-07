@@ -6426,42 +6426,75 @@ function savePejabatGAS(pejabatObj) {
       return `${st.length}|${sn.length}|${us.length}|${pg.length}|${tg.length}|${stHash}|${tgHash}|${pgHash}`;
     }
 
-    async function uploadPendingSetoranToCloud(item) {
-      if (!item || !item.id) return;
+    const activeUploadSet = new Set();
+    let isProcessingPendingUploads = false;
+
+    async function processPendingUploadsQueue() {
+      if (isProcessingPendingUploads) return;
       if (!isGasEnvironment() && !getActiveGasUrl()) return;
+
+      const pending = (appState.setoran || []).filter(item => 
+        item && item.id && !item.syncedToCloud && !activeUploadSet.has(item.id)
+      );
+
+      if (!pending.length) return;
+
+      isProcessingPendingUploads = true;
       try {
-        let base64 = '';
-        if (item.hasVideo && !item.driveUrl) {
-          const localBlob = await getVideoBlobLocal(item.id);
-          if (localBlob) {
-            base64 = await new Promise((resolve) => {
-              const r = new FileReader();
-              r.onloadend = () => resolve(r.result || '');
-              r.readAsDataURL(localBlob);
-            });
-          }
-        }
-        const cloudPayload = {
-          ...item,
-          videoBase64: base64,
-          videoMimeType: 'video/webm'
-        };
-        const res = await callCloudBackend('saveSetoranWithVideo', cloudPayload);
-        if (res && (res.status === 'success' || res.videoUrl)) {
-          if (res.videoUrl) {
-            item.driveUrl = res.videoUrl;
-            item.videoBlobUrl = res.videoUrl;
-            const target = (appState.setoran || []).find(x => x.id === item.id);
-            if (target) {
-              target.driveUrl = res.videoUrl;
-              target.videoBlobUrl = res.videoUrl;
+        for (const item of pending) {
+          if (activeUploadSet.has(item.id)) continue;
+          activeUploadSet.add(item.id);
+          try {
+            let base64 = '';
+            if (item.hasVideo && !item.driveUrl) {
+              const localBlob = await getVideoBlobLocal(item.id);
+              if (localBlob && localBlob.size <= 25 * 1024 * 1024) {
+                base64 = await new Promise((resolve) => {
+                  const r = new FileReader();
+                  r.onloadend = () => resolve(r.result || '');
+                  r.onerror = () => resolve('');
+                  r.readAsDataURL(localBlob);
+                });
+              }
             }
-            persistLocalState();
-            refreshAllViews();
+
+            const cloudPayload = {
+              ...item,
+              videoBase64: base64,
+              videoMimeType: 'video/webm'
+            };
+
+            const res = await callCloudBackend('saveSetoranWithVideo', cloudPayload);
+            base64 = null;
+            cloudPayload.videoBase64 = null;
+
+            if (res && (res.status === 'success' || res.videoUrl)) {
+              item.syncedToCloud = true;
+              if (res.videoUrl) {
+                item.driveUrl = res.videoUrl;
+                item.videoBlobUrl = res.videoUrl;
+              }
+              const target = (appState.setoran || []).find(x => x.id === item.id);
+              if (target) {
+                target.syncedToCloud = true;
+                if (res.videoUrl) {
+                  target.driveUrl = res.videoUrl;
+                  target.videoBlobUrl = res.videoUrl;
+                }
+              }
+              persistLocalState();
+              refreshAllViews();
+            }
+          } catch (itemErr) {
+            console.warn('Gagal upload pending item:', item.id, itemErr);
+          } finally {
+            activeUploadSet.delete(item.id);
           }
+          // Jeda aman untuk Garbage Collector
+          await new Promise(r => setTimeout(r, 600));
         }
-      } catch (err) {
-        console.warn('Gagal upload pending setoran ke cloud:', err);
+      } finally {
+        isProcessingPendingUploads = false;
       }
     }
 
@@ -6514,9 +6547,6 @@ function savePejabatGAS(pejabatObj) {
             const pendingUploads = (appState.setoran || []).filter(loc => 
               loc && loc.id && !cleanSetoran.some(cloud => cloud.id === loc.id)
             );
-            if (pendingUploads.length > 0) {
-              pendingUploads.forEach(p => uploadPendingSetoranToCloud(p));
-            }
 
             const mergedSetoran = [...cleanSetoran];
             pendingUploads.forEach(p => {
@@ -6528,6 +6558,10 @@ function savePejabatGAS(pejabatObj) {
             if (JSON.stringify(appState.setoran) !== JSON.stringify(mergedSetoran)) {
               appState.setoran = mergedSetoran;
               hasChanged = true;
+            }
+
+            if (pendingUploads.length > 0 && !isProcessingPendingUploads) {
+              processPendingUploadsQueue();
             }
           }
 
@@ -6615,7 +6649,7 @@ function savePejabatGAS(pejabatObj) {
     }
 
     async function loadInitialData() {
-      // 1. Bersihkan cache versi lama agar data dummy lama tidak lagi mencemari memori browser
+      // 1. Pembersihan darurat memori browser dari base64 video lama agar tidak terjadi Out of Memory
       try {
         localStorage.removeItem('SIMTAQ_MAN2_ABULYATAMA_DB_V9');
         localStorage.removeItem('SIMTAQ_MAN2_ABULYATAMA_DB_V8');
@@ -6623,7 +6657,25 @@ function savePejabatGAS(pejabatObj) {
         localStorage.removeItem('SIMTAQ_MAN2_ABULYATAMA_DB_V6');
         localStorage.removeItem('SIMTAQ_MAN2_ABULYATAMA_DB_V5');
 
-        const saved = localStorage.getItem(STORAGE_KEY);
+        let saved = localStorage.getItem(STORAGE_KEY);
+        if (saved && (saved.includes('data:video') || saved.includes('base64,') || saved.length > 300000)) {
+          try {
+            const parsedRaw = JSON.parse(saved);
+            if (Array.isArray(parsedRaw.setoran)) {
+              parsedRaw.setoran.forEach(s => {
+                if (s.videoBase64) delete s.videoBase64;
+                if (s.videoBlobUrl && s.videoBlobUrl.startsWith('data:')) s.videoBlobUrl = '';
+                if (s.driveUrl && s.driveUrl.startsWith('data:')) s.driveUrl = '';
+              });
+            }
+            saved = JSON.stringify(parsedRaw);
+            localStorage.setItem(STORAGE_KEY, saved);
+          } catch (eSanitize) {
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+            saved = null;
+          }
+        }
+
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.playlist?.length) appState.playlist = parsed.playlist;
@@ -6685,6 +6737,7 @@ function savePejabatGAS(pejabatObj) {
               .filter(s => s.nis !== '4334345' && s.nis !== '4334346')
               .map(s => {
                 if (s.videoBase64) delete s.videoBase64;
+                s.syncedToCloud = true;
                 return s;
               });
 
@@ -6692,15 +6745,16 @@ function savePejabatGAS(pejabatObj) {
             const pendingUploads = (appState.setoran || []).filter(loc => 
               loc && loc.id && !clean.some(cloud => cloud.id === loc.id)
             );
-            if (pendingUploads.length > 0) {
-              pendingUploads.forEach(p => uploadPendingSetoranToCloud(p));
-            }
 
             const merged = [...clean];
             pendingUploads.forEach(p => {
               if (!merged.some(m => m.id === p.id)) merged.unshift(p);
             });
             appState.setoran = merged;
+
+            if (pendingUploads.length > 0 && !isProcessingPendingUploads) {
+              processPendingUploadsQueue();
+            }
           }
           if (Array.isArray(res.target)) {
             const clean = res.target.filter(t => t.nis !== '4334345' && t.nis !== '4334346');
@@ -6749,9 +6803,11 @@ function savePejabatGAS(pejabatObj) {
         if (Array.isArray(res.setoran)) {
           const clean = res.setoran.filter(s => s.nis !== '4334345' && s.nis !== '4334346');
           const pending = (appState.setoran || []).filter(loc => loc && loc.id && !clean.some(c => c.id === loc.id));
-          pending.forEach(p => uploadPendingSetoranToCloud(p));
           appState.setoran = [...clean];
           pending.forEach(p => { if (!appState.setoran.some(m => m.id === p.id)) appState.setoran.unshift(p); });
+          if (pending.length > 0 && !isProcessingPendingUploads) {
+            processPendingUploadsQueue();
+          }
         }
         if (Array.isArray(res.target)) appState.target = res.target;
         if (res.pejabat && Object.keys(res.pejabat).length) {
